@@ -2,6 +2,16 @@ const STORAGE_KEY = "atlas_workspace_state_v1";
 const CLOUD_CONFIG_KEY = "atlas_workspace_cloud_v1";
 const FIRED_REMINDERS_KEY = "atlas_workspace_fired_reminders_v1";
 
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDDaZN9mPXPGrBMYykTnwguNsJp27JPLow",
+  authDomain: "atlas-workspace-af04b.firebaseapp.com",
+  projectId: "atlas-workspace-af04b",
+  storageBucket: "atlas-workspace-af04b.firebasestorage.app",
+  messagingSenderId: "1090000836099",
+  appId: "1:1090000836099:web:185ac63fa0d34b965de036",
+  measurementId: "G-NJK0P498EJ"
+};
+
 const columns = [
   { id: "ideas", title: "Ideas", color: "#315f95" },
   { id: "doing", title: "Doing", color: "#14715f" },
@@ -199,18 +209,19 @@ function bindEvents() {
   });
 
   el.authButton.addEventListener("click", () => {
-    if (currentUser) {
-      signOut();
-      return;
-    }
-    if (!authClient) {
-      openDialog(el.settingsDialog);
-      toast("Isi Firebase config dulu.");
-      return;
-    }
-    openAuthDialog("login");
-  });
+  if (currentUser) {
+    signOut();
+    return;
+  }
 
+  if (!authClient) {
+    toast("Firebase belum siap. Cek konfigurasi project.");
+    return;
+  }
+
+  openAuthDialog("login");
+});
+  
   el.toggleAuthMode.addEventListener("click", () => {
     openAuthDialog(authMode === "login" ? "signup" : "login");
   });
@@ -330,13 +341,7 @@ function createDefaultState() {
 }
 
 function loadCloudConfig() {
-  const saved = safeJson(localStorage.getItem(CLOUD_CONFIG_KEY));
-  return {
-    apiKey: saved?.apiKey || "",
-    authDomain: saved?.authDomain || "",
-    projectId: saved?.projectId || "",
-    appId: saved?.appId || "",
-  };
+  return { ...DEFAULT_FIREBASE_CONFIG };
 }
 
 function safeJson(value) {
