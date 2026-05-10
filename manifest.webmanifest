@@ -1,0 +1,10 @@
+{
+  "name": "Atlas Workspace",
+  "short_name": "Atlas",
+  "description": "Local-first workspace with Supabase auth and cloud sync.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#f7f8fa",
+  "icons": []
+}

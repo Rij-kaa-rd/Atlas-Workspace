@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8fa" />
+    <title>Atlas Workspace</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="icon-button" id="sidebarToggle" title="Menu" aria-label="Menu">
+          <i data-lucide="panel-left"></i>
+        </button>
+
+        <div class="brand">
+          <span class="brand-mark">A</span>
+          <div>
+            <strong>Atlas Workspace</strong>
+            <span id="syncStatus">Local mode</span>
+          </div>
+        </div>
+
+        <label class="search-box">
+          <i data-lucide="search"></i>
+          <input id="searchInput" type="search" placeholder="Cari halaman, tag, tugas..." autocomplete="off" />
+        </label>
+
+        <div class="top-actions">
+          <button class="icon-button" id="notificationButton" title="Aktifkan reminder" aria-label="Aktifkan reminder">
+            <i data-lucide="bell"></i>
+          </button>
+          <button class="icon-button" id="settingsButton" title="Cloud settings" aria-label="Cloud settings">
+            <i data-lucide="cloud-cog"></i>
+          </button>
+          <button class="button button-quiet" id="authButton">
+            <i data-lucide="log-in"></i>
+            <span>Login</span>
+          </button>
+        </div>
+      </header>
+
+      <aside class="sidebar" id="sidebar">
+        <div class="workspace-switcher">
+          <div>
+            <span>Workspace</span>
+            <strong id="workspaceName">Personal OS</strong>
+          </div>
+          <button class="icon-button" id="newPageButton" title="Halaman baru" aria-label="Halaman baru">
+            <i data-lucide="plus"></i>
+          </button>
+        </div>
+
+        <nav class="view-tabs" aria-label="Navigasi utama">
+          <button class="nav-item active" data-view="notes">
+            <i data-lucide="file-text"></i>
+            <span>Pages</span>
+          </button>
+          <button class="nav-item" data-view="kanban">
+            <i data-lucide="kanban-square"></i>
+            <span>Kanban</span>
+          </button>
+          <button class="nav-item" data-view="reminders">
+            <i data-lucide="alarm-clock"></i>
+            <span>Reminders</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-section">
+          <div class="section-title">
+            <span>Pages</span>
+            <span id="pageCount">0</span>
+          </div>
+          <div class="page-list" id="pageList"></div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="section-title">
+            <span>Tags</span>
+            <button class="text-button" id="clearTagFilter">Clear</button>
+          </div>
+          <div class="tag-cloud" id="tagCloud"></div>
+        </div>
+
+        <div class="user-panel">
+          <div class="avatar" id="userAvatar">G</div>
+          <div>
+            <strong id="userName">Guest</strong>
+            <span id="userEmail">Local workspace</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section class="workspace-view active" id="notesView" aria-label="Pages view">
+          <section class="editor-panel">
+            <div class="page-toolbar">
+              <button class="icon-button" id="deletePageButton" title="Hapus halaman" aria-label="Hapus halaman">
+                <i data-lucide="trash-2"></i>
+              </button>
+              <button class="icon-button" id="duplicatePageButton" title="Duplikasi halaman" aria-label="Duplikasi halaman">
+                <i data-lucide="copy"></i>
+              </button>
+              <select id="statusSelect" aria-label="Status halaman"></select>
+            </div>
+
+            <input class="title-input" id="titleInput" type="text" placeholder="Untitled" />
+
+            <div class="meta-grid">
+              <label>
+                <span>Icon</span>
+                <input id="iconInput" type="text" maxlength="2" placeholder="*" />
+              </label>
+              <label>
+                <span>Tags</span>
+                <input id="tagsInput" type="text" placeholder="product, urgent" />
+              </label>
+              <label>
+                <span>Reminder</span>
+                <input id="reminderInput" type="datetime-local" />
+              </label>
+            </div>
+
+            <textarea id="markdownInput" spellcheck="true" placeholder="# Mulai menulis..."></textarea>
+          </section>
+
+          <section class="preview-panel">
+            <div class="preview-header">
+              <span>Preview</span>
+              <div class="chip-row" id="previewTags"></div>
+            </div>
+            <article class="markdown-preview" id="markdownPreview"></article>
+          </section>
+        </section>
+
+        <section class="workspace-view" id="kanbanView" aria-label="Kanban view">
+          <div class="kanban-header">
+            <div>
+              <h1>Kanban</h1>
+              <span id="kanbanMeta">0 kartu</span>
+            </div>
+            <button class="button" id="newCardButton">
+              <i data-lucide="plus"></i>
+              <span>Kartu</span>
+            </button>
+          </div>
+          <div class="kanban-board" id="kanbanBoard"></div>
+        </section>
+
+        <section class="workspace-view" id="remindersView" aria-label="Reminders view">
+          <div class="reminder-header">
+            <div>
+              <h1>Reminders</h1>
+              <span id="reminderMeta">Tidak ada reminder</span>
+            </div>
+            <button class="button button-quiet" id="requestReminderPermission">
+              <i data-lucide="bell-ring"></i>
+              <span>Izinkan</span>
+            </button>
+          </div>
+          <div class="reminder-list" id="reminderList"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="modal" id="authDialog">
+      <form method="dialog" class="modal-card" id="authForm">
+        <div class="modal-header">
+          <div>
+            <h2 id="authTitle">Login</h2>
+            <span id="authSubtitle">Masuk untuk cloud sync.</span>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Tutup">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          <span>Nama</span>
+          <input id="authName" type="text" autocomplete="name" placeholder="Nama workspace" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="authEmail" type="email" autocomplete="email" required placeholder="email@domain.com" />
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Minimal 6 karakter" />
+        </label>
+        <div class="modal-actions">
+          <button class="button button-quiet" type="button" id="toggleAuthMode">Buat akun</button>
+          <button class="button" type="submit" id="submitAuthButton">
+            <i data-lucide="log-in"></i>
+            <span>Login</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="settingsDialog">
+      <form method="dialog" class="modal-card" id="settingsForm">
+        <div class="modal-header">
+          <div>
+            <h2>Cloud Settings</h2>
+            <span>Supabase project untuk auth dan sync.</span>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Tutup">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          <span>Supabase URL</span>
+          <input id="supabaseUrl" type="url" placeholder="https://xxxxx.supabase.co" />
+        </label>
+        <label>
+          <span>Supabase anon key</span>
+          <input id="supabaseAnonKey" type="password" placeholder="eyJhbGciOi..." />
+        </label>
+        <div class="modal-actions">
+          <button class="button button-quiet" type="button" id="clearCloudConfig">Local only</button>
+          <button class="button" type="submit">
+            <i data-lucide="save"></i>
+            <span>Simpan</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="pageDialog">
+      <form method="dialog" class="modal-card" id="pageForm">
+        <div class="modal-header">
+          <div>
+            <h2>Halaman Baru</h2>
+            <span>Page juga otomatis menjadi kartu Kanban.</span>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Tutup">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          <span>Judul</span>
+          <input id="newPageTitle" type="text" required placeholder="Roadmap Q2" />
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="newPageStatus"></select>
+        </label>
+        <label>
+          <span>Tags</span>
+          <input id="newPageTags" type="text" placeholder="product, planning" />
+        </label>
+        <div class="modal-actions">
+          <button class="button" type="submit">
+            <i data-lucide="plus"></i>
+            <span>Buat</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
