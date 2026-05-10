@@ -1,0 +1,19 @@
+.markdown-preview {
+  line-height: 1.7;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  letter-spacing: -0.02em;
+}
+
+.kanban-board {
+  min-width: 0;
+}
+
+.reminder-list,
+.page-list,
+.tag-cloud {
+  min-width: 0;
+}

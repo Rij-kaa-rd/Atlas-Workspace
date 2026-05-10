@@ -1,0 +1,33 @@
+.button {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.icon-button,
+.icon-btn {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.icon-button:active,
+.icon-btn:active {
+  transform: translateY(1px);
+}
+
+.chip,
+.tag-chip {
+  border-radius: var(--radius-pill);
+}
+
+.modal-card,
+.editor-panel,
+.preview-panel,
+.kanban-column,
+.kanban-card,
+.reminder-card {
+  border-radius: var(--radius-lg);
+}

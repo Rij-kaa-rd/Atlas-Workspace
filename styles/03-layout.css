@@ -1,0 +1,15 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  min-height: var(--topbar-height);
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+}
+
+.workspace {
+  min-width: 0;
+}

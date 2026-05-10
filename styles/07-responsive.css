@@ -1,0 +1,12 @@
+@media (max-width: 900px) {
+  :root {
+    --sidebar-width: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --topbar-height: 64px;
+    --sidebar-width: 100%;
+  }
+}
