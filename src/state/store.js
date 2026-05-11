@@ -1,15 +1,24 @@
+import { getRuntimeState } from "../app.runtime.js";
+import { getTodayISO } from "../utils/helpers.js";
+
 let state = {};
 const listeners = new Set();
 
-export function getState() {
+export function initStore(initialState = null) {
+  state = initialState || getRuntimeState() || { updatedAt: getTodayISO(), pages: [] };
+  notify();
   return state;
+}
+
+export function getState() {
+  return getRuntimeState() || state;
 }
 
 export function setState(nextState) {
   state = {
-    ...state,
+    ...getState(),
     ...nextState,
-    updatedAt: new Date().toISOString()
+    updatedAt: getTodayISO(),
   };
 
   notify();
@@ -19,7 +28,7 @@ export function setState(nextState) {
 export function replaceState(nextState) {
   state = {
     ...nextState,
-    updatedAt: nextState?.updatedAt || new Date().toISOString()
+    updatedAt: nextState?.updatedAt || getTodayISO(),
   };
 
   notify();
@@ -28,7 +37,7 @@ export function replaceState(nextState) {
 
 export function subscribe(listener) {
   if (typeof listener !== "function") {
-    throw new Error("Store listener harus berupa function.");
+    throw new Error("Store listener must be a function.");
   }
 
   listeners.add(listener);
@@ -40,7 +49,7 @@ export function subscribe(listener) {
 
 export function dispatch(action) {
   if (!action || !action.type) {
-    throw new Error("Action harus memiliki type.");
+    throw new Error("Action must have a type.");
   }
 
   switch (action.type) {
@@ -52,14 +61,14 @@ export function dispatch(action) {
 
     default:
       console.warn(`[store] Unknown action type: ${action.type}`);
-      return state;
+      return getState();
   }
 }
 
 function notify() {
   listeners.forEach((listener) => {
     try {
-      listener(state);
+      listener(getState());
     } catch (error) {
       console.error("[store] Listener error:", error);
     }

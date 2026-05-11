@@ -1,139 +1,65 @@
-import { firebaseConfig } from "../config/firebase.config.js";
+import { hasFirebaseConfig, getFirebaseConfig } from "../config/firebase.config.js";
+import {
+  getRuntimeSyncStatus,
+  loadRuntimeWorkspaceFromCloud,
+  syncRuntimeWorkspaceToCloud,
+  updateRuntimeSyncStatus,
+} from "../app.runtime.js";
 
 let firebaseApp = null;
-let authClient = null;
 let firestoreClient = null;
-let currentUser = null;
 
-const APP_NAME = `atlas-${firebaseConfig.projectId}`;
-const WORKSPACE_DOC_ID = "workspace";
+export async function initFirebaseApp() {
+  if (!hasFirebaseConfig()) {
+    updateSyncStatus("Local mode");
+    return null;
+  }
 
-export function isFirebaseAvailable() {
-  return Boolean(window.firebase?.initializeApp);
-}
-
-export function initFirebaseService({ onAuthChanged, onStatus, onError } = {}) {
-  if (!isFirebaseAvailable()) {
-    onStatus?.("Firebase SDK belum siap");
+  const config = getFirebaseConfig();
+  if (!window.firebase?.initializeApp) {
+    updateSyncStatus("Error");
     return null;
   }
 
   try {
-    const existingApp = window.firebase.apps.find((app) => app.name === APP_NAME);
-
-    firebaseApp = existingApp || window.firebase.initializeApp(firebaseConfig, APP_NAME);
-    authClient = window.firebase.auth(firebaseApp);
-    firestoreClient = window.firebase.firestore(firebaseApp);
-
-    firestoreClient.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-
-    authClient.onAuthStateChanged((user) => {
-      currentUser = user;
-      onAuthChanged?.(user);
-    });
-
-    onStatus?.("Cloud siap");
-
-    return {
-      app: firebaseApp,
-      auth: authClient,
-      db: firestoreClient
-    };
+    const appName = `atlas-${config.projectId}`;
+    firebaseApp = window.firebase.apps.find((app) => app.name === appName)
+      || window.firebase.initializeApp(config, appName);
+    initFirestore();
+    return firebaseApp;
   } catch (error) {
+    updateSyncStatus("Error");
+    console.warn("[firebase.service] Firebase initialization failed:", error);
     firebaseApp = null;
-    authClient = null;
     firestoreClient = null;
-    currentUser = null;
-
-    onStatus?.("Firebase config error");
-    onError?.(error);
-
     return null;
   }
 }
 
-export function getCurrentUser() {
-  return currentUser;
-}
+export function initFirestore() {
+  const config = getFirebaseConfig();
+  if (!window.firebase?.firestore || !config.projectId) return null;
 
-export function getAuthClient() {
-  return authClient;
-}
+  const app = window.firebase.apps.find((item) => item.name === `atlas-${config.projectId}`);
+  firestoreClient = app ? window.firebase.firestore(app) : null;
 
-export function getFirestoreClient() {
+  // Firebase compat persistence is isolated here so future upgrades only touch this service.
+  firestoreClient?.enablePersistence?.({ synchronizeTabs: true }).catch(() => {});
   return firestoreClient;
 }
 
-export function hasCloudSession() {
-  return Boolean(currentUser && firestoreClient);
+export function syncWorkspaceToCloud() {
+  return syncRuntimeWorkspaceToCloud();
 }
 
-export async function signInWithEmail(email, password) {
-  if (!authClient) {
-    throw new Error("Firebase Auth belum siap.");
-  }
-
-  return authClient.signInWithEmailAndPassword(email, password);
+export function loadWorkspaceFromCloud() {
+  return loadRuntimeWorkspaceFromCloud();
 }
 
-export async function signUpWithEmail({ name, email, password }) {
-  if (!authClient) {
-    throw new Error("Firebase Auth belum siap.");
-  }
-
-  const credential = await authClient.createUserWithEmailAndPassword(email, password);
-
-  if (name && credential.user) {
-    await credential.user.updateProfile({ displayName: name });
-  }
-
-  return credential;
+export function updateSyncStatus(status) {
+  updateRuntimeSyncStatus(status);
 }
 
-export async function signOutFirebase() {
-  if (!authClient) {
-    return;
-  }
-
-  await authClient.signOut();
-}
-
-export async function pullWorkspaceState() {
-  if (!currentUser || !firestoreClient) {
-    return null;
-  }
-
-  const docRef = firestoreClient
-    .collection("users")
-    .doc(currentUser.uid)
-    .collection("private")
-    .doc(WORKSPACE_DOC_ID);
-
-  const snapshot = await docRef.get();
-
-  if (!snapshot.exists) {
-    return null;
-  }
-
-  return snapshot.data();
-}
-
-export async function pushWorkspaceState(state) {
-  if (!currentUser || !firestoreClient) {
-    return;
-  }
-
-  const docRef = firestoreClient
-    .collection("users")
-    .doc(currentUser.uid)
-    .collection("private")
-    .doc(WORKSPACE_DOC_ID);
-
-  await docRef.set(
-    {
-      ...state,
-      updatedAt: new Date().toISOString()
-    },
-    { merge: true }
-  );
+export function getSyncStatus() {
+  return getRuntimeSyncStatus();
 }
