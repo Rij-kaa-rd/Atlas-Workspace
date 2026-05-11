@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   initModals();
 
+  renderApp();
+  renderDashboard();
+
   try {
     await initFirebaseApp();
     await initAuth();
@@ -20,6 +23,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   initAtlasRuntime();
-  renderApp();
-  renderDashboard();
 });
