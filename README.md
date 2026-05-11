@@ -1,92 +1,94 @@
-Atlas Workspace
+# Atlas Workspace
 
-Calm Productivity Workspace — local-first personal workspace for notes, Kanban, reminders, and structured thinking.
+> Calm Productivity Workspace — local-first personal workspace for notes, Kanban, reminders, and structured thinking.
 
-Overview
+## Overview
 
-Atlas Workspace (formerly Ruang Kerja) is a lightweight local-first productivity workspace inspired by principles from Notion, Linear, Trello, and Google Keep.
+Atlas Workspace, formerly **Ruang Kerja**, is a lightweight local-first productivity workspace inspired by Notion, Linear, Trello, and Google Keep.
 
-The project is designed as a Personal Workspace OS:
+The project is designed as a **Personal Workspace OS** that is fast, offline-friendly, static-hosted, Firebase-enabled, easy to deploy, and simple to maintain.
 
-fast
-offline-friendly
-static-hosted
-Firebase-enabled
-easy to deploy
-minimal dependency overhead
+## Live Demo
 
-Built with:
+**Firebase Hosting**
 
-Vanilla JavaScript (ES Modules)
-Firebase Auth
-Cloud Firestore
-Firebase Hosting
-PWA architecture
-Modular CSS architecture
-Live Demo
-Firebase Hosting
-https://atlas-workspace-af04b.web.app/
-https://atlas-workspace-af04b.firebaseapp.com/
-GitHub Repository
-https://github.com/fermantonoihsan/Ruang-Kerja
-Features
-Workspace Core
-Markdown notes editor
-Live markdown preview
-Kanban board drag & drop
-Reminder management
-Tags & filtering
-Search system
-Dashboard overview
-Empty states
-Dark mode
-Responsive layout
-Local-First Architecture
-Works without login
-Instant localStorage persistence
-Offline-friendly behavior
-Progressive enhancement with cloud sync
-Firebase Integration
-Firebase Authentication
-Firestore cloud backup & sync
-User-isolated workspace storage
-Firestore security rules
-PWA Support
-Service Worker
-Installable web app
-Cached application shell
-Product Direction
+- https://atlas-workspace-af04b.web.app/
+- https://atlas-workspace-af04b.firebaseapp.com/
 
-Atlas Workspace is intentionally positioned as:
+**GitHub Repository**
 
+- https://github.com/fermantonoihsan/Ruang-Kerja
+
+## Features
+
+### Workspace Core
+
+- Markdown notes editor
+- Live markdown preview
+- Kanban board with drag and drop
+- Reminder management
+- Tags and filtering
+- Search system
+- Dashboard overview
+- Empty states
+- Dark mode
+- Responsive layout
+
+### Local-First Behavior
+
+- Works without login
+- Instant localStorage persistence
+- Offline-friendly behavior
+- Progressive enhancement with cloud sync
+
+### Firebase Integration
+
+- Firebase Authentication
+- Firestore cloud backup and sync
+- User-isolated workspace storage
+- Firestore security rules
+
+### PWA Support
+
+- Service Worker
+- Installable web app
+- Cached application shell
+
+## Product Direction
+
+Atlas Workspace is positioned as a:
+
+```text
 Personal Workspace OS
+```
 
-instead of:
-
-admin dashboard
-enterprise SaaS clone
-bloated collaboration suite
+The goal is not to build a heavy admin dashboard, but a calm and focused workspace that feels modern, readable, and easy to use every day.
 
 Design direction:
 
-calm
-spacious
-rounded
-modern
-readable
-low cognitive load
-Tech Stack
-Layer	Technology
-Frontend	Vanilla JavaScript
-Styling	Modular CSS Architecture
-State	Local State + localStorage
-Cloud	Firebase Firestore
-Auth	Firebase Authentication
-Hosting	Firebase Hosting
-PWA	Service Worker
-Icons	Lucide Icons
-Architecture
-Current Structure
+- Calm
+- Spacious
+- Rounded
+- Modern
+- Readable
+- Low cognitive load
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Vanilla JavaScript |
+| Styling | Modular CSS Architecture |
+| State | Local State + localStorage |
+| Cloud | Firebase Firestore |
+| Auth | Firebase Authentication |
+| Hosting | Firebase Hosting |
+| PWA | Service Worker |
+| Icons | Lucide Icons |
+
+## Project Structure
+
+```text
 Ruang-Kerja/
 ├── index.html
 ├── app.js
@@ -115,24 +117,30 @@ Ruang-Kerja/
 │   └── 07-responsive.css
 └── .github/
     └── workflows/
-CSS Architecture
-00-tokens.css      Design tokens
-01-reset.css       Reset & normalization
-02-base.css        Base typography & forms
-03-layout.css      App shell & layout
-04-components.css  Buttons, cards, chips, modals
-05-features.css    Dashboard, notes, kanban, reminders
-06-utilities.css   Utility helper classes
-07-responsive.css  Breakpoints
-Firebase Security Rules
+```
 
-Each user can only access their own workspace.
+## CSS Architecture
 
+```text
+00-tokens.css      Design tokens: color, spacing, radius, shadow, typography
+01-reset.css       Box sizing and default normalization
+02-base.css        Body, typography, forms, buttons, focus state
+03-layout.css      App shell, sidebar, topbar, workspace grid
+04-components.css  Buttons, chips, cards, modals, toast, badges
+05-features.css    Dashboard, notes, Kanban, reminders
+06-utilities.css   Helper classes
+07-responsive.css  Mobile, tablet, and desktop breakpoints
+```
+
+## Firebase Security Rules
+
+Each authenticated user can only access their own workspace document.
+
+```js
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     match /users/{userId}/private/{documentId} {
       allow read, write: if request.auth != null
         && request.auth.uid == userId;
@@ -143,21 +151,50 @@ service cloud.firestore {
     }
   }
 }
-Getting Started
-1. Clone Repository
+```
+
+## Getting Started
+
+### 1. Clone Repository
+
+```bash
 git clone https://github.com/fermantonoihsan/Ruang-Kerja.git
-2. Install Firebase CLI
+cd Ruang-Kerja
+```
+
+### 2. Install Firebase CLI
+
+```bash
 npm install -g firebase-tools
-3. Login Firebase
+```
+
+### 3. Login Firebase
+
+```bash
 firebase login
-4. Run Local Server
+```
+
+### 4. Run Local Server
+
+```bash
 firebase serve
-5. Deploy
+```
+
+### 5. Deploy to Firebase
+
+```bash
 firebase deploy
-Deployment Scripts
+```
 
-Example package.json scripts:
+Or deploy hosting only:
 
+```bash
+firebase deploy --only hosting
+```
+
+## Suggested `package.json` Scripts
+
+```json
 {
   "scripts": {
     "dev": "firebase serve",
@@ -167,40 +204,11 @@ Example package.json scripts:
     "deploy:rules": "firebase deploy --only firestore:rules"
   }
 }
-Roadmap
-Phase 1
-Firebase deployment readiness
-CSS architecture migration
-Dashboard foundation
-Phase 2
-Kanban redesign
-Reminder redesign
-Dark mode stabilization
-App modularization
-Phase 3
-Complete ES module architecture
-Sync optimization
-Better offline support
-GitHub Actions deployment
-Accessibility improvements
-Planned Features
-Multi-workspace support
-Command palette
-Favorites / pinned pages
-Workspace templates
-Import/export JSON
-Conflict resolution viewer
-Keyboard-first workflow
-Better mobile gestures
-Design Principles
-Local-first by default
-Fast interaction over complexity
-Minimal cognitive friction
-Clear visual hierarchy
-Modern calm UI
-Offline-friendly workflow
-Progressive enhancement
-Current Development Status
+```
+
+## Development Status
+
+```text
 [x] Workspace layout
 [x] Sidebar
 [x] Notes
@@ -214,13 +222,85 @@ Current Development Status
 [x] Empty states
 [~] Dashboard refinement
 [~] Sidebar restructuring
-[~] JS modularization
+[~] JavaScript modularization
 [ ] Full production refactor
-Author
+```
 
-Muhammad Himam Awali
+## Roadmap
+
+### Phase 1 — Deployable Baseline
+
+- Firebase Hosting configuration
+- Firestore rules
+- Deployment scripts
+- README deployment guide
+
+### Phase 2 — Design System Foundation
+
+- Layered CSS architecture
+- Design tokens
+- Modern card, chip, button, and modal system
+- Improved visual hierarchy
+
+### Phase 3 — Product UI Refresh
+
+- Dashboard landing page
+- Sidebar restructure
+- Topbar as command/search bar
+- Notes, Kanban, and reminders redesign
+- Empty states
+
+### Phase 4 — JavaScript Modularization
+
+- Split `app.js` into smaller modules
+- Move storage logic into services
+- Move Firebase logic into services
+- Move markdown renderer into services
+- Move dashboard, notes, Kanban, and reminders into feature views
+
+### Phase 5 — State and Sync Improvement
+
+- Schema versioning
+- Local data migration
+- Debounced autosave
+- Debounced Firestore sync
+- Improved sync status
+
+### Phase 6 — QA and Accessibility
+
+- Mobile testing
+- Keyboard navigation
+- Focus states
+- Contrast validation
+- Service worker cache testing
+- Firestore rules testing
+
+## Planned Features
+
+- Multi-workspace support
+- Command palette
+- Favorites or pinned pages
+- Workspace templates
+- Import and export workspace JSON
+- Offline sync conflict viewer
+- Better mobile gestures
+- Keyboard-first workflow
+
+## Design Principles
+
+- Local-first by default
+- Fast interaction over complexity
+- Minimal cognitive friction
+- Clear visual hierarchy
+- Calm modern UI
+- Offline-friendly workflow
+- Progressive enhancement
+
+## Author
+
+**Ihsan Fermantono**  
 Atlas Workspace / Ruang Kerja Project
 
-License
+## License
 
 MIT License
