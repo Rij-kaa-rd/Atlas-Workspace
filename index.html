@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f7f8fa" />
     <title>Atlas Workspace</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="styles.css" />
     <script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
@@ -24,16 +24,18 @@
           <span class="brand-mark">A</span>
           <div>
             <strong>Atlas Workspace</strong>
-            <span class="sync-badge" id="syncStatus">Local mode</span>
+            <span>Personal OS</span>
           </div>
         </div>
 
-        <label class="search-box">
+        <label class="search-box command-search">
           <i data-lucide="search"></i>
-          <input id="searchInput" type="search" placeholder="Cari halaman, tag, tugas..." autocomplete="off" />
+          <input id="searchInput" type="search" placeholder="Search notes, tasks, tags..." autocomplete="off" />
+          <kbd>Ctrl K</kbd>
         </label>
 
         <div class="top-actions">
+          <span class="sync-badge local" id="syncStatus">Local mode</span>
           <button class="icon-button" id="notificationButton" title="Aktifkan reminder" aria-label="Aktifkan reminder">
             <i data-lucide="bell"></i>
           </button>
@@ -52,7 +54,9 @@
       </header>
 
       <aside class="sidebar" id="sidebar">
-        <div class="workspace-switcher">
+        <div class="sidebar-group">
+          <div class="sidebar-label">Workspace</div>
+          <div class="workspace-switcher">
           <div>
             <span>Workspace</span>
             <strong id="workspaceName">Personal OS</strong>
@@ -60,8 +64,11 @@
           <button class="icon-button" id="newPageButton" title="Halaman baru" aria-label="Halaman baru">
             <i data-lucide="plus"></i>
           </button>
+          </div>
         </div>
 
+        <div class="sidebar-group">
+        <div class="sidebar-label">Main Navigation</div>
         <nav class="view-tabs" aria-label="Navigasi utama">
           <button class="nav-item active" data-view="dashboard">
             <i data-lucide="layout-dashboard"></i>
@@ -69,7 +76,7 @@
           </button>
           <button class="nav-item" data-view="notes">
             <i data-lucide="file-text"></i>
-            <span>Pages</span>
+            <span>Notes</span>
           </button>
           <button class="nav-item" data-view="kanban">
             <i data-lucide="kanban-square"></i>
@@ -80,8 +87,9 @@
             <span>Reminders</span>
           </button>
         </nav>
+        </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-group">
           <div class="section-title">
             <span>Pages</span>
             <span id="pageCount">0</span>
@@ -89,7 +97,7 @@
           <div class="page-list" id="pageList"></div>
         </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-group">
           <div class="section-title">
             <span>Tags</span>
             <button class="text-button" id="clearTagFilter">Clear</button>
@@ -97,12 +105,15 @@
           <div class="tag-cloud" id="tagCloud"></div>
         </div>
 
+        <div class="sidebar-group account-group">
+          <div class="sidebar-label">Account</div>
         <div class="user-panel">
           <div class="avatar" id="userAvatar">G</div>
           <div>
             <strong id="userName">Guest</strong>
             <span id="userEmail">Local workspace</span>
           </div>
+        </div>
         </div>
       </aside>
 
@@ -111,12 +122,12 @@
   <div class="dashboard-hero">
     <div>
       <span class="eyebrow">Personal Workspace OS</span>
-      <h1>Selamat bekerja.</h1>
-      <p>Kelola catatan, task Kanban, dan reminder dari satu tempat.</p>
+      <h1>Good day, ready to organize your workspace?</h1>
+      <p>Capture notes, organize tasks, and track reminders from one calm workspace.</p>
     </div>
     <button class="button" id="dashboardNewPageButton">
       <i data-lucide="plus"></i>
-      <span>Halaman Baru</span>
+      <span>New Page</span>
     </button>
   </div>
 
@@ -126,7 +137,7 @@
       <strong id="dashboardTotalPages">0</strong>
     </article>
     <article class="stat-card">
-      <span>Doing</span>
+      <span>In Progress / Doing</span>
       <strong id="dashboardDoingPages">0</strong>
     </article>
     <article class="stat-card">
@@ -134,7 +145,7 @@
       <strong id="dashboardReviewPages">0</strong>
     </article>
     <article class="stat-card">
-      <span>Reminders</span>
+      <span>Active Reminders</span>
       <strong id="dashboardReminderPages">0</strong>
     </article>
   </div>
@@ -265,19 +276,23 @@
       <form class="modal-card" id="settingsForm">
         <div class="modal-header">
           <div>
-            <h2>Firebase Settings</h2>
-            <span>Firebase project untuk auth dan Firestore sync.</span>
+            <h2>Settings</h2>
+            <span>Manage workspace preferences and cloud sync.</span>
           </div>
           <button class="icon-button" type="button" data-close-dialog aria-label="Tutup">
             <i data-lucide="x"></i>
           </button>
         </div>
+        <div class="settings-section">
+          <h3>Cloud Sync</h3>
+          <p>Connect Firebase Auth and Firestore for multi-device workspace sync.</p>
+        </div>
         <label>
-          <span>API key</span>
+          <span>API Key</span>
           <input id="firebaseApiKey" type="password" placeholder="AIza..." />
         </label>
         <label>
-          <span>Auth domain</span>
+          <span>Auth Domain</span>
           <input id="firebaseAuthDomain" type="text" placeholder="project-id.firebaseapp.com" />
         </label>
         <label>
@@ -289,10 +304,10 @@
           <input id="firebaseAppId" type="text" placeholder="1:123:web:abc" />
         </label>
         <div class="modal-actions">
-          <button class="button button-quiet" type="button" id="clearCloudConfig">Local only</button>
+          <button class="button button-quiet" type="button" id="clearCloudConfig">Use Local Mode</button>
           <button class="button" type="submit">
             <i data-lucide="save"></i>
-            <span>Simpan</span>
+            <span>Save Settings</span>
           </button>
         </div>
       </form>

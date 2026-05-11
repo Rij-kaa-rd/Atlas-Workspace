@@ -159,6 +159,19 @@ function bindEvents() {
     renderReminders();
   });
 
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      el.searchInput?.focus();
+    }
+  });
+
+  window.addEventListener("offline", () => updateSyncStatus("Offline"));
+  window.addEventListener("online", () => {
+    updateSyncStatus(currentUser ? "Syncing..." : "Local mode");
+    if (currentUser) queueCloudSync(true);
+  });
+
   el.newPageButton.addEventListener("click", () => openPageDialog());
   el.dashboardNewPageButton?.addEventListener("click", () => openPageDialog());
 
@@ -235,7 +248,7 @@ el.themeToggle?.addEventListener("click", () => {
 
   el.clearCloudConfig.addEventListener("click", () => {
     config = { apiKey: "", authDomain: "", projectId: "", appId: "" };
-    localStorage.removeItem(CLOUD_CONFIG_KEY);
+    localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
     firebaseApp = null;
     authClient = null;
     firestoreClient = null;
@@ -379,6 +392,10 @@ function createDefaultState() {
 }
 
 function loadCloudConfig() {
+  const saved = safeJson(localStorage.getItem(CLOUD_CONFIG_KEY));
+  if (saved) {
+    return { ...DEFAULT_FIREBASE_CONFIG, ...saved };
+  }
   return { ...DEFAULT_FIREBASE_CONFIG };
 }
 
@@ -534,7 +551,11 @@ function renderSidebar() {
   el.pageCount.textContent = String(pages.length);
 
   if (!pages.length) {
-    el.pageList.innerHTML = `<div class="empty-state">Tidak ada page yang cocok.</div>`;
+    const title = searchQuery || activeTag ? "No matching pages" : "No pages yet";
+    const subtitle = searchQuery || activeTag
+      ? "Try a different search or clear the tag filter."
+      : "Create a page to start shaping this workspace.";
+    el.pageList.innerHTML = emptyState("file-text", title, subtitle, "New Page", "data-empty-new-page");
     } else {
     el.pageList.innerHTML = pages
       .map(
@@ -560,13 +581,14 @@ function renderSidebar() {
       renderAll();
     });
   });
+  el.pageList.querySelector("[data-empty-new-page]")?.addEventListener("click", () => openPageDialog());
 
   const tags = [...new Set(state.pages.flatMap((page) => page.tags))].sort();
   el.tagCloud.innerHTML = tags.length
     ? tags
         .map((tag) => `<button class="chip ${activeTag === tag ? "active" : ""}" data-tag="${tag}">#${escapeHtml(tag)}</button>`)
         .join("")
-    : `<span class="chip">Belum ada tag</span>`;
+    : emptyState("tag", "No tags yet", "Add comma-separated tags to any page to build your tag list.");
 
   el.tagCloud.querySelectorAll("[data-tag]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -576,7 +598,7 @@ function renderSidebar() {
   });
 }
 
-function renderDashboard() {
+function renderDashboardLegacy() {
   if (!el.dashboardView) return;
 
   const pages = filteredPages();
@@ -645,6 +667,66 @@ function renderDashboard() {
   });
 }
 
+function renderDashboard() {
+  if (!el.dashboardView) return;
+
+  const pages = filteredPages();
+  const doingPages = pages.filter((page) => page.status === "doing");
+  const reviewPages = pages.filter((page) => page.status === "review");
+  const reminderPages = pages.filter((page) => page.reminderAt && !page.reminderDone);
+
+  if (el.dashboardTotalPages) el.dashboardTotalPages.textContent = String(pages.length);
+  if (el.dashboardDoingPages) el.dashboardDoingPages.textContent = String(doingPages.length);
+  if (el.dashboardReviewPages) el.dashboardReviewPages.textContent = String(reviewPages.length);
+  if (el.dashboardReminderPages) el.dashboardReminderPages.textContent = String(reminderPages.length);
+
+  const recentPages = [...pages]
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .slice(0, 5);
+
+  if (el.dashboardRecentPages) {
+    el.dashboardRecentPages.innerHTML = recentPages.length
+      ? recentPages.map((page) => `
+          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
+            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
+            <span>
+              <strong>${escapeHtml(page.title)}</strong>
+              <small>${formatRelative(page.updatedAt)} - ${statusTitle(page.status)}</small>
+            </span>
+          </button>
+        `).join("")
+      : emptyState("clock", "No recent pages", "Create or edit a page and it will appear here.", "New Page", "data-dashboard-new-page");
+  }
+
+  const duePages = [...reminderPages]
+    .sort((a, b) => new Date(a.reminderAt) - new Date(b.reminderAt))
+    .slice(0, 5);
+
+  if (el.dashboardDuePages) {
+    el.dashboardDuePages.innerHTML = duePages.length
+      ? duePages.map((page) => `
+          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
+            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
+            <span>
+              <strong>${escapeHtml(page.title)}</strong>
+              <small>${formatDate(page.reminderAt)}</small>
+            </span>
+          </button>
+        `).join("")
+      : emptyState("bell", "No reminders due soon", "Add a reminder to a page to keep important work visible.");
+  }
+
+  el.dashboardView.querySelector("[data-dashboard-new-page]")?.addEventListener("click", () => openPageDialog());
+  el.dashboardView.querySelectorAll("[data-dashboard-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedPageId = button.dataset.dashboardPage;
+      activeView = "notes";
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+    });
+  });
+}
+
 function renderEditor() {
   const page = getSelectedPage();
   if (!page) return;
@@ -688,7 +770,7 @@ function renderKanban() {
               `,
             )
             .join("")
-        : `<div class="empty-state">Drop kartu di sini.</div>`;
+        : emptyState("kanban-square", "No cards in this column", "Drop a page here or create a new card.", "New Card", `data-empty-card="${column.id}"`);
 
       return `
         <section class="kanban-column" data-column-id="${column.id}">
@@ -703,6 +785,9 @@ function renderKanban() {
     .join("");
 
   bindKanbanEvents();
+  el.kanbanBoard.querySelectorAll("[data-empty-card]").forEach((button) => {
+    button.addEventListener("click", () => openPageDialog(button.dataset.emptyCard));
+  });
   refreshIcons();
 }
 
@@ -775,7 +860,8 @@ function renderReminders() {
   el.reminderMeta.textContent = pending.length ? `${pending.length} aktif` : "Tidak ada reminder aktif";
 
   if (!reminders.length) {
-    el.reminderList.innerHTML = `<div class="empty-state">Belum ada reminder.</div>`;
+    el.reminderList.innerHTML = emptyState("bell", "No reminders", "Set a date on any page to track it here.");
+    refreshIcons();
     return;
   }
 
@@ -899,7 +985,7 @@ function initFirebase(forceMessage = false) {
   }
 
   if (!window.firebase?.initializeApp) {
-    updateSyncStatus("Firebase SDK belum siap");
+    updateSyncStatus("Error");
     return;
   }
 
@@ -918,7 +1004,7 @@ function initFirebase(forceMessage = false) {
     firebaseApp = null;
     authClient = null;
     firestoreClient = null;
-    updateSyncStatus("Firebase config error");
+    updateSyncStatus("Error");
     toast(error.message);
     renderUser();
     return;
@@ -930,7 +1016,7 @@ function initFirebase(forceMessage = false) {
     if (user) {
       pullCloudState();
     } else {
-      updateSyncStatus("Cloud siap, belum login");
+      updateSyncStatus("Local mode");
       if (forceMessage) toast("Cloud config tersimpan. Silakan login.");
     }
   });
@@ -967,7 +1053,7 @@ async function handleAuthSubmit() {
 
     currentUser = credential.user;
   } catch (error) {
-    updateSyncStatus("Auth gagal");
+    updateSyncStatus("Error");
     toast(firebaseErrorMessage(error));
     return;
   }
@@ -983,7 +1069,7 @@ async function signOut() {
   await queueCloudSync(true);
   await authClient.signOut();
   currentUser = null;
-  updateSyncStatus("Cloud siap, belum login");
+  updateSyncStatus("Local mode");
   renderUser();
   toast("Logout berhasil.");
 }
@@ -996,7 +1082,7 @@ async function pullCloudState() {
   try {
     snapshot = await workspaceDocRef().get();
   } catch (error) {
-    updateSyncStatus("Sync error");
+    updateSyncStatus("Error");
     toast(firebaseErrorMessage(error));
     return;
   }
@@ -1031,7 +1117,7 @@ function queueCloudSync(immediate = false) {
   }
 
   syncTimer = setTimeout(pushCloudState, 900);
-  updateSyncStatus("Pending sync...");
+  updateSyncStatus("Syncing...");
   return Promise.resolve();
 }
 
@@ -1049,7 +1135,7 @@ async function pushCloudState() {
       { merge: true },
     );
   } catch (error) {
-    updateSyncStatus("Sync error");
+    updateSyncStatus("Error");
     toast(firebaseErrorMessage(error));
     return;
   }
@@ -1072,7 +1158,29 @@ function firebaseErrorMessage(error) {
 }
 
 function updateSyncStatus(message) {
+  if (!el.syncStatus) return;
+  const normalized = String(message || "").toLowerCase();
+  let stateClass = "local";
+  if (normalized.includes("sync")) stateClass = "syncing";
+  if (normalized.includes("synced")) stateClass = "synced";
+  if (normalized.includes("offline")) stateClass = "error";
+  if (normalized.includes("error") || normalized.includes("gagal") || normalized.includes("belum siap")) stateClass = "error";
   el.syncStatus.textContent = message;
+  el.syncStatus.className = `sync-badge ${stateClass}`;
+}
+
+function emptyState(icon, title, subtitle, actionText = "", actionAttribute = "") {
+  const action = actionText && actionAttribute
+    ? `<button class="button button-quiet empty-action" ${actionAttribute}>${escapeHtml(actionText)}</button>`
+    : "";
+  return `
+    <div class="empty-state">
+      <i data-lucide="${escapeHtml(icon)}"></i>
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(subtitle)}</span>
+      ${action}
+    </div>
+  `;
 }
 
 function openPageDialog(status = "ideas") {
