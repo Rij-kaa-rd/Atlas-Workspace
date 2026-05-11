@@ -1,3 +1,10 @@
+import {
+  generateId,
+  formatDate,
+  formatRelativeDate,
+  sanitizeText,
+} from "./utils/helpers.js";
+
 const STORAGE_KEY = "atlas_workspace_state_v1";
 const CLOUD_CONFIG_KEY = "atlas_workspace_cloud_v1";
 const FIRED_REMINDERS_KEY = "atlas_workspace_fired_reminders_v1";
@@ -9,7 +16,7 @@ const DEFAULT_FIREBASE_CONFIG = {
   storageBucket: "atlas-workspace-af04b.firebasestorage.app",
   messagingSenderId: "1090000836099",
   appId: "1:1090000836099:web:185ac63fa0d34b965de036",
-  measurementId: "G-NJK0P498EJ"
+  measurementId: "G-NJK0P498EJ",
 };
 
 const columns = [
@@ -34,11 +41,16 @@ let toastTimer = null;
 
 const el = {};
 
+const uid = generateId;
+const escapeHtml = sanitizeText;
+const formatRelative = formatRelativeDate;
+
 let runtimeInitialized = false;
 
 export function initAtlasRuntime() {
   if (runtimeInitialized) return;
   runtimeInitialized = true;
+
   cacheElements();
   initTheme();
   bindEvents();
@@ -57,15 +69,17 @@ function initTheme() {
   document.documentElement.dataset.theme = savedTheme;
 
   if (el.themeToggle) {
-    el.themeToggle.innerHTML = savedTheme === "dark"
-      ? `<i data-lucide="sun"></i>`
-      : `<i data-lucide="moon"></i>`;
+    el.themeToggle.innerHTML =
+      savedTheme === "dark"
+        ? `<i data-lucide="sun"></i>`
+        : `<i data-lucide="moon"></i>`;
   }
 }
 
 function cacheElements() {
   [
     "syncStatus",
+    "syncStatusBadge",
     "sidebar",
     "sidebarToggle",
     "searchInput",
@@ -134,17 +148,19 @@ function cacheElements() {
   ].forEach((id) => {
     el[id] = document.getElementById(id);
   });
+
+  el.syncStatus = el.syncStatusBadge || el.syncStatus;
 }
 
 function bindEvents() {
-  el.sidebarToggle.addEventListener("click", () => {
-    el.sidebar.classList.toggle("open");
+  el.sidebarToggle?.addEventListener("click", () => {
+    el.sidebar?.classList.toggle("open");
   });
 
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       activeView = button.dataset.view;
-      el.sidebar.classList.remove("open");
+      el.sidebar?.classList.remove("open");
       renderViews();
     });
   });
@@ -155,7 +171,7 @@ function bindEvents() {
     });
   });
 
-  el.searchInput.addEventListener("input", (event) => {
+  el.searchInput?.addEventListener("input", (event) => {
     searchQuery = event.target.value.trim().toLowerCase();
     renderSidebar();
     renderDashboard();
@@ -171,65 +187,86 @@ function bindEvents() {
   });
 
   window.addEventListener("offline", () => updateSyncStatus("Offline"));
+
   window.addEventListener("online", () => {
     updateSyncStatus(currentUser ? "Syncing..." : "Local mode");
     if (currentUser) queueCloudSync(true);
   });
 
-  el.newPageButton.addEventListener("click", () => openPageDialog());
+  el.newPageButton?.addEventListener("click", () => openPageDialog());
   el.dashboardNewPageButton?.addEventListener("click", () => openPageDialog());
 
-el.themeToggle?.addEventListener("click", () => {
-  const currentTheme = document.documentElement.dataset.theme || "light";
-  const nextTheme = currentTheme === "dark" ? "light" : "dark";
+  el.themeToggle?.addEventListener("click", () => {
+    const currentTheme = document.documentElement.dataset.theme || "light";
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
 
-  document.documentElement.dataset.theme = nextTheme;
-  localStorage.setItem("atlas-theme", nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    localStorage.setItem("atlas-theme", nextTheme);
 
-  el.themeToggle.innerHTML = nextTheme === "dark"
-    ? `<i data-lucide="sun"></i>`
-    : `<i data-lucide="moon"></i>`;
+    el.themeToggle.innerHTML =
+      nextTheme === "dark"
+        ? `<i data-lucide="sun"></i>`
+        : `<i data-lucide="moon"></i>`;
 
-  refreshIcons();
-});
-  el.newCardButton.addEventListener("click", () => openPageDialog("ideas"));
+    refreshIcons();
+  });
 
-  el.pageForm.addEventListener("submit", (event) => {
+  el.newCardButton?.addEventListener("click", () => openPageDialog("ideas"));
+
+  el.pageForm?.addEventListener("submit", (event) => {
     event.preventDefault();
+
     createPage({
       title: el.newPageTitle.value.trim(),
       status: el.newPageStatus.value,
       tags: parseTags(el.newPageTags.value),
     });
+
     el.pageDialog.close();
     el.pageForm.reset();
   });
 
-  el.titleInput.addEventListener("input", () => updateSelectedPage({ title: el.titleInput.value || "Untitled" }));
-  el.iconInput.addEventListener("input", () => updateSelectedPage({ icon: el.iconInput.value.trim() || "*" }));
-  el.tagsInput.addEventListener("change", () => updateSelectedPage({ tags: parseTags(el.tagsInput.value) }));
-  el.statusSelect.addEventListener("change", () => updateSelectedPage({ status: el.statusSelect.value }));
-  el.reminderInput.addEventListener("change", () => {
+  el.titleInput?.addEventListener("input", () => {
+    updateSelectedPage({ title: el.titleInput.value || "Untitled" });
+  });
+
+  el.iconInput?.addEventListener("input", () => {
+    updateSelectedPage({ icon: el.iconInput.value.trim() || "*" });
+  });
+
+  el.tagsInput?.addEventListener("change", () => {
+    updateSelectedPage({ tags: parseTags(el.tagsInput.value) });
+  });
+
+  el.statusSelect?.addEventListener("change", () => {
+    updateSelectedPage({ status: el.statusSelect.value });
+  });
+
+  el.reminderInput?.addEventListener("change", () => {
     updateSelectedPage({
       reminderAt: el.reminderInput.value ? new Date(el.reminderInput.value).toISOString() : "",
       reminderDone: false,
     });
   });
-  el.markdownInput.addEventListener("input", () => updateSelectedPage({ markdown: el.markdownInput.value }, false));
-  el.markdownInput.addEventListener("blur", () => saveAndRender());
 
-  el.deletePageButton.addEventListener("click", deleteSelectedPage);
-  el.duplicatePageButton.addEventListener("click", duplicateSelectedPage);
+  el.markdownInput?.addEventListener("input", () => {
+    updateSelectedPage({ markdown: el.markdownInput.value }, false);
+  });
 
-  el.clearTagFilter.addEventListener("click", () => {
+  el.markdownInput?.addEventListener("blur", () => saveAndRender());
+
+  el.deletePageButton?.addEventListener("click", deleteSelectedPage);
+  el.duplicatePageButton?.addEventListener("click", duplicateSelectedPage);
+
+  el.clearTagFilter?.addEventListener("click", () => {
     activeTag = "";
     renderAll();
   });
 
-  el.notificationButton.addEventListener("click", requestNotifications);
-  el.requestReminderPermission.addEventListener("click", requestNotifications);
+  el.notificationButton?.addEventListener("click", requestNotifications);
+  el.requestReminderPermission?.addEventListener("click", requestNotifications);
 
-  el.settingsButton.addEventListener("click", () => {
+  el.settingsButton?.addEventListener("click", () => {
     el.firebaseApiKey.value = config.apiKey || "";
     el.firebaseAuthDomain.value = config.authDomain || "";
     el.firebaseProjectId.value = config.projectId || "";
@@ -237,51 +274,55 @@ el.themeToggle?.addEventListener("click", () => {
     openDialog(el.settingsDialog);
   });
 
-  el.settingsForm.addEventListener("submit", (event) => {
+  el.settingsForm?.addEventListener("submit", (event) => {
     event.preventDefault();
+
     config = {
       apiKey: el.firebaseApiKey.value.trim(),
       authDomain: el.firebaseAuthDomain.value.trim(),
       projectId: el.firebaseProjectId.value.trim(),
       appId: el.firebaseAppId.value.trim(),
     };
+
     localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
     el.settingsDialog.close();
     initFirebase(true);
   });
 
-  el.clearCloudConfig.addEventListener("click", () => {
+  el.clearCloudConfig?.addEventListener("click", () => {
     config = { apiKey: "", authDomain: "", projectId: "", appId: "" };
     localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
+
     firebaseApp = null;
     authClient = null;
     firestoreClient = null;
     currentUser = null;
+
     el.settingsDialog.close();
     updateSyncStatus("Local mode");
     renderUser();
     toast("Cloud config dihapus. App berjalan lokal.");
   });
 
-  el.authButton.addEventListener("click", () => {
-  if (currentUser) {
-    signOut();
-    return;
-  }
+  el.authButton?.addEventListener("click", () => {
+    if (currentUser) {
+      signOut();
+      return;
+    }
 
-  if (!authClient) {
-    toast("Firebase belum siap. Cek konfigurasi project.");
-    return;
-  }
+    if (!authClient) {
+      toast("Firebase belum siap. Cek konfigurasi project.");
+      return;
+    }
 
-  openAuthDialog("login");
-});
-  
-  el.toggleAuthMode.addEventListener("click", () => {
+    openAuthDialog("login");
+  });
+
+  el.toggleAuthMode?.addEventListener("click", () => {
     openAuthDialog(authMode === "login" ? "signup" : "login");
   });
 
-  el.authForm.addEventListener("submit", (event) => {
+  el.authForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     handleAuthSubmit();
   });
@@ -289,20 +330,24 @@ el.themeToggle?.addEventListener("click", () => {
 
 function populateStatusSelects() {
   const options = columns.map((column) => `<option value="${column.id}">${column.title}</option>`).join("");
-  el.statusSelect.innerHTML = options;
-  el.newPageStatus.innerHTML = options;
+
+  if (el.statusSelect) el.statusSelect.innerHTML = options;
+  if (el.newPageStatus) el.newPageStatus.innerHTML = options;
 }
 
 function loadState() {
   const saved = safeJson(localStorage.getItem(STORAGE_KEY));
+
   if (saved && Array.isArray(saved.pages)) {
     return normalizeState(saved);
   }
+
   return createDefaultState();
 }
 
 function normalizeState(raw) {
   const now = new Date().toISOString();
+
   const pages = raw.pages.map((page, index) => ({
     id: page.id || uid("page"),
     title: page.title || "Untitled",
@@ -327,6 +372,7 @@ function normalizeState(raw) {
 
 function createDefaultState() {
   const now = new Date().toISOString();
+
   const pageA = {
     id: uid("page"),
     title: "Product Roadmap",
@@ -369,7 +415,7 @@ function createDefaultState() {
     createdAt: now,
     updatedAt: now,
     markdown:
-      "# Research Vault\n\nGunakan area ini untuk menyimpan link, insight, dan draft.\n\n```js\nconst nextStep = \"ship useful workspace\";\n```\n\n[Firebase](https://firebase.google.com) cocok untuk auth, Firestore sync, dan hosting.",
+      '# Research Vault\n\nGunakan area ini untuk menyimpan link, insight, dan draft.\n\n```js\nconst nextStep = "ship useful workspace";\n```\n\n[Firebase](https://firebase.google.com) cocok untuk auth, Firestore sync, dan hosting.',
   };
 
   const pageD = {
@@ -397,9 +443,11 @@ function createDefaultState() {
 
 function loadCloudConfig() {
   const saved = safeJson(localStorage.getItem(CLOUD_CONFIG_KEY));
+
   if (saved) {
     return { ...DEFAULT_FIREBASE_CONFIG, ...saved };
   }
+
   return { ...DEFAULT_FIREBASE_CONFIG };
 }
 
@@ -411,10 +459,6 @@ function safeJson(value) {
   }
 }
 
-function uid(prefix) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
-}
-
 function addHours(hours) {
   return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 }
@@ -422,16 +466,20 @@ function addHours(hours) {
 function saveAndRender(sync = true) {
   state.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
   if (sync && currentUser && firestoreClient) {
     queueCloudSync();
   }
+
   renderAll();
 }
 
 function updateSelectedPage(patch, render = true) {
   const page = getSelectedPage();
   if (!page) return;
+
   Object.assign(page, patch, { updatedAt: new Date().toISOString() });
+
   if (patch.markdown !== undefined) {
     state.updatedAt = new Date().toISOString();
     renderPreview(page);
@@ -439,6 +487,7 @@ function updateSelectedPage(patch, render = true) {
     queueCloudSync();
     return;
   }
+
   if (render) saveAndRender();
 }
 
@@ -447,10 +496,12 @@ function getSelectedPage() {
 }
 
 function createPage({ title, status = "ideas", tags = [] }) {
+  const safeTitle = title || "Untitled";
+
   const newPage = {
     id: uid("page"),
-    title: title || "Untitled",
-    icon: (title || "U").trim().slice(0, 1).toUpperCase(),
+    title: safeTitle,
+    icon: safeTitle.trim().slice(0, 1).toUpperCase() || "U",
     status,
     position: getPagesByStatus(status).length,
     tags,
@@ -458,11 +509,13 @@ function createPage({ title, status = "ideas", tags = [] }) {
     reminderDone: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    markdown: `# ${title || "Untitled"}\n\nMulai tulis catatan di sini.\n\n- [ ] Langkah pertama`,
+    markdown: `# ${safeTitle}\n\nMulai tulis catatan di sini.\n\n- [ ] Langkah pertama`,
   };
+
   state.pages.push(newPage);
   state.selectedPageId = newPage.id;
   activeView = "notes";
+
   saveAndRender();
   toast("Halaman baru dibuat.");
 }
@@ -472,12 +525,16 @@ function deleteSelectedPage() {
     toast("Workspace harus punya minimal satu halaman.");
     return;
   }
+
   const page = getSelectedPage();
   if (!page) return;
+
   const ok = confirm(`Hapus "${page.title}"?`);
   if (!ok) return;
+
   state.pages = state.pages.filter((item) => item.id !== page.id);
   state.selectedPageId = state.pages[0]?.id || "";
+
   saveAndRender();
   toast("Halaman dihapus.");
 }
@@ -485,6 +542,7 @@ function deleteSelectedPage() {
 function duplicateSelectedPage() {
   const page = getSelectedPage();
   if (!page) return;
+
   const copy = {
     ...page,
     id: uid("page"),
@@ -493,15 +551,23 @@ function duplicateSelectedPage() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
   state.pages.push(copy);
   state.selectedPageId = copy.id;
+
   saveAndRender();
   toast("Halaman diduplikasi.");
 }
 
 function parseTags(value) {
-  if (Array.isArray(value)) return value;
-  return value
+  if (Array.isArray(value)) {
+    return value
+      .map((tag) => String(tag).trim().toLowerCase())
+      .filter(Boolean)
+      .filter((tag, index, list) => list.indexOf(tag) === index);
+  }
+
+  return String(value || "")
     .split(",")
     .map((tag) => tag.trim().toLowerCase())
     .filter(Boolean)
@@ -511,7 +577,7 @@ function parseTags(value) {
 function getPagesByStatus(status) {
   return state.pages
     .filter((page) => page.status === status)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.updatedAt.localeCompare(b.updatedAt));
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || String(a.updatedAt).localeCompare(String(b.updatedAt)));
 }
 
 function filteredPages() {
@@ -519,6 +585,7 @@ function filteredPages() {
     const haystack = `${page.title} ${page.markdown} ${page.tags.join(" ")}`.toLowerCase();
     const matchesQuery = !searchQuery || haystack.includes(searchQuery);
     const matchesTag = !activeTag || page.tags.includes(activeTag);
+
     return matchesQuery && matchesTag;
   });
 }
@@ -538,29 +605,34 @@ function renderViews() {
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === activeView);
   });
+
   [
-  ["dashboard", el.dashboardView],
-  ["notes", el.notesView],
-  ["kanban", el.kanbanView],
-  ["reminders", el.remindersView],
-].forEach(([view, node]) => {
-  node?.classList.toggle("active", activeView === view);
-});
+    ["dashboard", el.dashboardView],
+    ["notes", el.notesView],
+    ["kanban", el.kanbanView],
+    ["reminders", el.remindersView],
+  ].forEach(([view, node]) => {
+    node?.classList.toggle("active", activeView === view);
+  });
+
   refreshIcons();
 }
 
 function renderSidebar() {
   const pages = filteredPages().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  el.workspaceName.textContent = state.workspaceName;
-  el.pageCount.textContent = String(pages.length);
+
+  if (el.workspaceName) el.workspaceName.textContent = state.workspaceName;
+  if (el.pageCount) el.pageCount.textContent = String(pages.length);
 
   if (!pages.length) {
     const title = searchQuery || activeTag ? "No matching pages" : "No pages yet";
-    const subtitle = searchQuery || activeTag
-      ? "Try a different search or clear the tag filter."
-      : "Create a page to start shaping this workspace.";
+    const subtitle =
+      searchQuery || activeTag
+        ? "Try a different search or clear the tag filter."
+        : "Create a page to start shaping this workspace.";
+
     el.pageList.innerHTML = emptyState("file-text", title, subtitle, "New Page", "data-empty-new-page");
-    } else {
+  } else {
     el.pageList.innerHTML = pages
       .map(
         (page) => `
@@ -576,99 +648,38 @@ function renderSidebar() {
       .join("");
   }
 
-  el.pageList.querySelectorAll("[data-page-id]").forEach((button) => {
+  el.pageList?.querySelectorAll("[data-page-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedPageId = button.dataset.pageId;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      el.sidebar.classList.remove("open");
+      el.sidebar?.classList.remove("open");
       activeView = "notes";
       renderAll();
     });
   });
-  el.pageList.querySelector("[data-empty-new-page]")?.addEventListener("click", () => openPageDialog());
+
+  el.pageList?.querySelector("[data-empty-new-page]")?.addEventListener("click", () => openPageDialog());
 
   const tags = [...new Set(state.pages.flatMap((page) => page.tags))].sort();
-  el.tagCloud.innerHTML = tags.length
-    ? tags
-        .map((tag) => `<button class="chip ${activeTag === tag ? "active" : ""}" data-tag="${tag}">#${escapeHtml(tag)}</button>`)
-        .join("")
-    : emptyState("tag", "No tags yet", "Add comma-separated tags to any page to build your tag list.");
 
-  el.tagCloud.querySelectorAll("[data-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeTag = activeTag === button.dataset.tag ? "" : button.dataset.tag;
-      renderAll();
+  if (el.tagCloud) {
+    el.tagCloud.innerHTML = tags.length
+      ? tags
+          .map((tag) => `<button class="chip ${activeTag === tag ? "active" : ""}" data-tag="${tag}">#${escapeHtml(tag)}</button>`)
+          .join("")
+      : emptyState("tag", "No tags yet", "Add comma-separated tags to any page to build your tag list.");
+
+    el.tagCloud.querySelectorAll("[data-tag]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeTag = activeTag === button.dataset.tag ? "" : button.dataset.tag;
+        renderAll();
+      });
     });
-  });
+  }
 }
 
 function renderDashboardLegacy() {
-  if (!el.dashboardView) return;
-
-  const pages = filteredPages();
-  const doingPages = pages.filter((page) => page.status === "doing");
-  const reviewPages = pages.filter((page) => page.status === "review");
-  const reminderPages = pages.filter((page) => page.reminderAt && !page.reminderDone);
-
-  if (el.dashboardTotalPages) el.dashboardTotalPages.textContent = String(pages.length);
-  if (el.dashboardDoingPages) el.dashboardDoingPages.textContent = String(doingPages.length);
-  if (el.dashboardReviewPages) el.dashboardReviewPages.textContent = String(reviewPages.length);
-  if (el.dashboardReminderPages) el.dashboardReminderPages.textContent = String(reminderPages.length);
-
-  const recentPages = [...pages]
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-    .slice(0, 5);
-
-  if (el.dashboardRecentPages) {
-    el.dashboardRecentPages.innerHTML = recentPages.length
-      ? recentPages.map((page) => `
-          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
-            <span>
-              <strong>${escapeHtml(page.title)}</strong>
-              <small>${formatRelative(page.updatedAt)} · ${statusTitle(page.status)}</small>
-            </span>
-          </button>
-        `).join("")
-      : `
-        <div class="empty-state">
-          <strong>Belum ada page.</strong>
-          <span>Buat halaman pertama untuk mulai bekerja.</span>
-        </div>
-      `;
-  }
-
-  const duePages = [...reminderPages]
-    .sort((a, b) => new Date(a.reminderAt) - new Date(b.reminderAt))
-    .slice(0, 5);
-
-  if (el.dashboardDuePages) {
-    el.dashboardDuePages.innerHTML = duePages.length
-      ? duePages.map((page) => `
-          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
-            <span>
-              <strong>${escapeHtml(page.title)}</strong>
-              <small>${formatDate(page.reminderAt)}</small>
-            </span>
-          </button>
-        `).join("")
-      : `
-        <div class="empty-state">
-          <strong>Tidak ada reminder aktif.</strong>
-          <span>Tambahkan reminder dari halaman notes.</span>
-        </div>
-      `;
-  }
-
-  el.dashboardView.querySelectorAll("[data-dashboard-page]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedPageId = button.dataset.dashboardPage;
-      activeView = "notes";
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      renderAll();
-    });
-  });
+  renderDashboard();
 }
 
 function renderDashboard() {
@@ -690,15 +701,19 @@ function renderDashboard() {
 
   if (el.dashboardRecentPages) {
     el.dashboardRecentPages.innerHTML = recentPages.length
-      ? recentPages.map((page) => `
-          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
-            <span>
-              <strong>${escapeHtml(page.title)}</strong>
-              <small>${formatRelative(page.updatedAt)} - ${statusTitle(page.status)}</small>
-            </span>
-          </button>
-        `).join("")
+      ? recentPages
+          .map(
+            (page) => `
+              <button class="dashboard-list-item" data-dashboard-page="${page.id}">
+                <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
+                <span>
+                  <strong>${escapeHtml(page.title)}</strong>
+                  <small>${formatRelative(page.updatedAt)} - ${statusTitle(page.status)}</small>
+                </span>
+              </button>
+            `,
+          )
+          .join("")
       : emptyState("clock", "No recent pages", "Create or edit a page and it will appear here.", "New Page", "data-dashboard-new-page");
   }
 
@@ -708,19 +723,24 @@ function renderDashboard() {
 
   if (el.dashboardDuePages) {
     el.dashboardDuePages.innerHTML = duePages.length
-      ? duePages.map((page) => `
-          <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-            <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
-            <span>
-              <strong>${escapeHtml(page.title)}</strong>
-              <small>${formatDate(page.reminderAt)}</small>
-            </span>
-          </button>
-        `).join("")
+      ? duePages
+          .map(
+            (page) => `
+              <button class="dashboard-list-item" data-dashboard-page="${page.id}">
+                <span class="page-dot">${escapeHtml(page.icon || "*")}</span>
+                <span>
+                  <strong>${escapeHtml(page.title)}</strong>
+                  <small>${formatDate(page.reminderAt)}</small>
+                </span>
+              </button>
+            `,
+          )
+          .join("")
       : emptyState("bell", "No reminders due soon", "Add a reminder to a page to keep important work visible.");
   }
 
   el.dashboardView.querySelector("[data-dashboard-new-page]")?.addEventListener("click", () => openPageDialog());
+
   el.dashboardView.querySelectorAll("[data-dashboard-page]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedPageId = button.dataset.dashboardPage;
@@ -734,23 +754,35 @@ function renderDashboard() {
 function renderEditor() {
   const page = getSelectedPage();
   if (!page) return;
-  el.titleInput.value = page.title;
-  el.iconInput.value = page.icon || "";
-  el.tagsInput.value = page.tags.join(", ");
-  el.statusSelect.value = page.status;
-  el.reminderInput.value = page.reminderAt ? toLocalInputValue(page.reminderAt) : "";
-  el.markdownInput.value = page.markdown || "";
+
+  if (el.titleInput) el.titleInput.value = page.title;
+  if (el.iconInput) el.iconInput.value = page.icon || "";
+  if (el.tagsInput) el.tagsInput.value = page.tags.join(", ");
+  if (el.statusSelect) el.statusSelect.value = page.status;
+  if (el.reminderInput) el.reminderInput.value = page.reminderAt ? toLocalInputValue(page.reminderAt) : "";
+  if (el.markdownInput) el.markdownInput.value = page.markdown || "";
+
   renderPreview(page);
 }
 
 function renderPreview(page) {
-  el.previewTags.innerHTML = page.tags.map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("");
-  el.markdownPreview.innerHTML = renderMarkdown(page.markdown || "");
+  if (el.previewTags) {
+    el.previewTags.innerHTML = page.tags.map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("");
+  }
+
+  if (el.markdownPreview) {
+    el.markdownPreview.innerHTML = renderMarkdown(page.markdown || "");
+  }
 }
 
 function renderKanban() {
   const pages = filteredPages();
-  el.kanbanMeta.textContent = `${pages.length} kartu`;
+
+  if (el.kanbanMeta) {
+    el.kanbanMeta.textContent = `${pages.length} kartu`;
+  }
+
+  if (!el.kanbanBoard) return;
 
   el.kanbanBoard.innerHTML = columns
     .map((column) => {
@@ -765,7 +797,9 @@ function renderKanban() {
                 <article class="kanban-card" draggable="true" data-card-id="${page.id}" data-status="${column.id}">
                   <strong>${escapeHtml(page.icon || "*")} ${escapeHtml(page.title)}</strong>
                   <p>${escapeHtml(summary(page.markdown))}</p>
-                  <div class="chip-row">${page.tags.slice(0, 3).map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("")}</div>
+                  <div class="chip-row">
+                    ${page.tags.slice(0, 3).map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("")}
+                  </div>
                   <div class="card-footer">
                     <small>${page.reminderAt ? formatDate(page.reminderAt) : formatRelative(page.updatedAt)}</small>
                     <button class="text-button" data-open-page="${page.id}">Open</button>
@@ -789,23 +823,30 @@ function renderKanban() {
     .join("");
 
   bindKanbanEvents();
+
   el.kanbanBoard.querySelectorAll("[data-empty-card]").forEach((button) => {
     button.addEventListener("click", () => openPageDialog(button.dataset.emptyCard));
   });
+
   refreshIcons();
 }
 
 function bindKanbanEvents() {
+  if (!el.kanbanBoard) return;
+
   el.kanbanBoard.querySelectorAll(".kanban-card").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
       event.dataTransfer.setData("text/plain", card.dataset.cardId);
       card.classList.add("dragging");
     });
+
     card.addEventListener("dragend", () => {
       card.classList.remove("dragging");
       el.kanbanBoard.querySelectorAll(".kanban-column").forEach((column) => column.classList.remove("drag-over"));
     });
+
     card.addEventListener("dragover", (event) => event.preventDefault());
+
     card.addEventListener("drop", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -818,7 +859,9 @@ function bindKanbanEvents() {
       event.preventDefault();
       column.classList.add("drag-over");
     });
+
     column.addEventListener("dragleave", () => column.classList.remove("drag-over"));
+
     column.addEventListener("drop", (event) => {
       event.preventDefault();
       column.classList.remove("drag-over");
@@ -838,6 +881,7 @@ function bindKanbanEvents() {
 function movePage(pageId, targetStatus, beforeId = "") {
   const page = state.pages.find((item) => item.id === pageId);
   if (!page || !targetStatus) return;
+
   page.status = targetStatus;
   page.updatedAt = new Date().toISOString();
 
@@ -846,12 +890,15 @@ function movePage(pageId, targetStatus, beforeId = "") {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   const insertIndex = beforeId ? Math.max(0, siblings.findIndex((item) => item.id === beforeId)) : siblings.length;
+
   siblings.splice(insertIndex, 0, page);
+
   siblings.forEach((item, index) => {
     item.position = index;
   });
 
   state.selectedPageId = page.id;
+
   saveAndRender();
 }
 
@@ -861,7 +908,12 @@ function renderReminders() {
     .sort((a, b) => new Date(a.reminderAt) - new Date(b.reminderAt));
 
   const pending = reminders.filter((page) => !page.reminderDone);
-  el.reminderMeta.textContent = pending.length ? `${pending.length} aktif` : "Tidak ada reminder aktif";
+
+  if (el.reminderMeta) {
+    el.reminderMeta.textContent = pending.length ? `${pending.length} aktif` : "Tidak ada reminder aktif";
+  }
+
+  if (!el.reminderList) return;
 
   if (!reminders.length) {
     el.reminderList.innerHTML = emptyState("bell", "No reminders", "Set a date on any page to track it here.");
@@ -872,12 +924,15 @@ function renderReminders() {
   el.reminderList.innerHTML = reminders
     .map((page) => {
       const due = !page.reminderDone && new Date(page.reminderAt) <= new Date();
+
       return `
         <article class="reminder-card ${due ? "due" : ""}">
           <div>
             <strong>${escapeHtml(page.icon || "*")} ${escapeHtml(page.title)}</strong>
             <small>${page.reminderDone ? "Selesai" : due ? "Jatuh tempo" : formatDate(page.reminderAt)}</small>
-            <div class="chip-row">${page.tags.map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("")}</div>
+            <div class="chip-row">
+              ${page.tags.map((tag) => `<span class="chip">#${escapeHtml(tag)}</span>`).join("")}
+            </div>
           </div>
           <div class="reminder-actions">
             <button class="button button-quiet" data-snooze="${page.id}">
@@ -897,18 +952,22 @@ function renderReminders() {
   el.reminderList.querySelectorAll("[data-snooze]").forEach((button) => {
     button.addEventListener("click", () => snoozeReminder(button.dataset.snooze));
   });
+
   el.reminderList.querySelectorAll("[data-done]").forEach((button) => {
     button.addEventListener("click", () => toggleReminderDone(button.dataset.done));
   });
+
   refreshIcons();
 }
 
 function snoozeReminder(pageId) {
   const page = state.pages.find((item) => item.id === pageId);
   if (!page) return;
+
   page.reminderAt = addHours(24);
   page.reminderDone = false;
   page.updatedAt = new Date().toISOString();
+
   saveAndRender();
   toast("Reminder ditunda 24 jam.");
 }
@@ -916,8 +975,10 @@ function snoozeReminder(pageId) {
 function toggleReminderDone(pageId) {
   const page = state.pages.find((item) => item.id === pageId);
   if (!page) return;
+
   page.reminderDone = !page.reminderDone;
   page.updatedAt = new Date().toISOString();
+
   saveAndRender();
 }
 
@@ -929,16 +990,21 @@ function installReminderLoop() {
 function checkReminders() {
   const fired = new Set(safeJson(localStorage.getItem(FIRED_REMINDERS_KEY)) || []);
   const now = new Date();
+
   const duePages = state.pages.filter((page) => {
     if (!page.reminderAt || page.reminderDone) return false;
+
     const key = `${page.id}:${page.reminderAt}`;
+
     return new Date(page.reminderAt) <= now && !fired.has(key);
   });
 
   duePages.forEach((page) => {
     const key = `${page.id}:${page.reminderAt}`;
+
     fired.add(key);
     toast(`Reminder: ${page.title}`);
+
     if (window.Notification?.permission === "granted") {
       new Notification(page.title, {
         body: summary(page.markdown) || "Reminder workspace",
@@ -958,22 +1024,28 @@ async function requestNotifications() {
     toast("Browser ini belum mendukung notification.");
     return;
   }
+
   const permission = await Notification.requestPermission();
+
   toast(permission === "granted" ? "Reminder aktif." : "Reminder belum diizinkan.");
 }
 
 function renderUser() {
   const user = currentUser;
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Guest";
-  el.userName.textContent = displayName;
-  el.userEmail.textContent = user?.email || (authClient ? "Belum login" : "Local workspace");
-  el.userAvatar.textContent = displayName.slice(0, 1).toUpperCase();
 
-  if (currentUser) {
-    el.authButton.innerHTML = `<i data-lucide="log-out"></i><span>Logout</span>`;
-  } else {
-    el.authButton.innerHTML = `<i data-lucide="log-in"></i><span>Login</span>`;
+  if (el.userName) el.userName.textContent = displayName;
+  if (el.userEmail) el.userEmail.textContent = user?.email || (authClient ? "Belum login" : "Local workspace");
+  if (el.userAvatar) el.userAvatar.textContent = displayName.slice(0, 1).toUpperCase();
+
+  if (el.authButton) {
+    if (currentUser) {
+      el.authButton.innerHTML = `<i data-lucide="log-out"></i><span>Logout</span>`;
+    } else {
+      el.authButton.innerHTML = `<i data-lucide="log-in"></i><span>Login</span>`;
+    }
   }
+
   refreshIcons();
 }
 
@@ -983,8 +1055,10 @@ function initFirebase(forceMessage = false) {
     authClient = null;
     firestoreClient = null;
     currentUser = null;
+
     updateSyncStatus("Local mode");
     renderUser();
+
     return;
   }
 
@@ -996,27 +1070,33 @@ function initFirebase(forceMessage = false) {
   try {
     const appName = `atlas-${config.projectId}`;
     const existingApp = window.firebase.apps.find((app) => app.name === appName);
+
     if (existingApp) {
       firebaseApp = existingApp;
     } else {
       firebaseApp = window.firebase.initializeApp(config, appName);
     }
+
     authClient = window.firebase.auth(firebaseApp);
     firestoreClient = window.firebase.firestore(firebaseApp);
+
     firestoreClient.enablePersistence({ synchronizeTabs: true }).catch(() => {});
   } catch (error) {
     firebaseApp = null;
     authClient = null;
     firestoreClient = null;
+
     updateSyncStatus("Error");
     toast(error.message);
     renderUser();
+
     return;
   }
 
   authClient.onAuthStateChanged((user) => {
     currentUser = user;
     renderUser();
+
     if (user) {
       pullCloudState();
     } else {
@@ -1028,20 +1108,27 @@ function initFirebase(forceMessage = false) {
 
 function openAuthDialog(mode) {
   authMode = mode;
+
   const isSignup = mode === "signup";
+
   el.authTitle.textContent = isSignup ? "Buat Akun" : "Login";
   el.authSubtitle.textContent = isSignup ? "Akun Firebase untuk workspace sync." : "Masuk untuk cloud sync.";
   el.authName.closest("label").style.display = isSignup ? "grid" : "none";
   el.toggleAuthMode.textContent = isSignup ? "Sudah punya akun" : "Buat akun";
-  el.submitAuthButton.innerHTML = isSignup ? `<i data-lucide="user-plus"></i><span>Daftar</span>` : `<i data-lucide="log-in"></i><span>Login</span>`;
+  el.submitAuthButton.innerHTML = isSignup
+    ? `<i data-lucide="user-plus"></i><span>Daftar</span>`
+    : `<i data-lucide="log-in"></i><span>Login</span>`;
+
   openDialog(el.authDialog);
   refreshIcons();
 }
 
 async function handleAuthSubmit() {
   if (!authClient) return;
+
   const email = el.authEmail.value.trim();
   const password = el.authPassword.value;
+
   updateSyncStatus("Authenticating...");
 
   try {
@@ -1064,15 +1151,20 @@ async function handleAuthSubmit() {
 
   el.authDialog.close();
   el.authForm.reset();
+
   toast(authMode === "signup" ? "Akun Firebase dibuat." : "Login berhasil.");
+
   if (currentUser) pullCloudState();
 }
 
 async function signOut() {
   if (!authClient) return;
+
   await queueCloudSync(true);
   await authClient.signOut();
+
   currentUser = null;
+
   updateSyncStatus("Local mode");
   renderUser();
   toast("Logout berhasil.");
@@ -1080,9 +1172,11 @@ async function signOut() {
 
 async function pullCloudState() {
   if (!firestoreClient || !currentUser) return;
+
   updateSyncStatus("Syncing...");
 
   let snapshot;
+
   try {
     snapshot = await workspaceDocRef().get();
   } catch (error) {
@@ -1097,6 +1191,7 @@ async function pullCloudState() {
     const remoteUpdatedAt = remote?.updatedAt?.toDate?.() || remote?.updatedAt || remoteData?.updatedAt || 0;
     const remoteUpdated = new Date(remoteUpdatedAt).getTime();
     const localUpdated = new Date(state.updatedAt || 0).getTime();
+
     if (remoteData && remoteUpdated > localUpdated) {
       state = normalizeState(remoteData);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1114,6 +1209,7 @@ async function pullCloudState() {
 
 function queueCloudSync(immediate = false) {
   if (!firestoreClient || !currentUser) return Promise.resolve();
+
   if (syncTimer) clearTimeout(syncTimer);
 
   if (immediate) {
@@ -1122,11 +1218,13 @@ function queueCloudSync(immediate = false) {
 
   syncTimer = setTimeout(pushCloudState, 900);
   updateSyncStatus("Syncing...");
+
   return Promise.resolve();
 }
 
 async function pushCloudState() {
   if (!firestoreClient || !currentUser) return;
+
   updateSyncStatus("Syncing...");
 
   try {
@@ -1143,6 +1241,7 @@ async function pushCloudState() {
     toast(firebaseErrorMessage(error));
     return;
   }
+
   updateSyncStatus(`Synced ${formatTime(new Date())}`);
 }
 
@@ -1158,25 +1257,33 @@ function firebaseErrorMessage(error) {
     "auth/weak-password": "Password minimal 6 karakter.",
     "permission-denied": "Firestore rules menolak akses. Cek firebase.rules.",
   };
+
   return messages[error?.code] || error?.message || "Firebase error.";
 }
 
 function updateSyncStatus(message) {
   if (!el.syncStatus) return;
+
   const normalized = String(message || "").toLowerCase();
+
   let stateClass = "local";
+
   if (normalized.includes("sync")) stateClass = "syncing";
   if (normalized.includes("synced")) stateClass = "synced";
   if (normalized.includes("offline")) stateClass = "error";
   if (normalized.includes("error") || normalized.includes("gagal") || normalized.includes("belum siap")) stateClass = "error";
-  el.syncStatus.textContent = message;
+  if (normalized.includes("local")) stateClass = "local";
+
+  el.syncStatus.textContent = message || "Local mode";
   el.syncStatus.className = `sync-badge ${stateClass}`;
 }
 
 function emptyState(icon, title, subtitle, actionText = "", actionAttribute = "") {
-  const action = actionText && actionAttribute
-    ? `<button class="button button-quiet empty-action" ${actionAttribute}>${escapeHtml(actionText)}</button>`
-    : "";
+  const action =
+    actionText && actionAttribute
+      ? `<button class="button button-quiet empty-action" ${actionAttribute}>${escapeHtml(actionText)}</button>`
+      : "";
+
   return `
     <div class="empty-state">
       <i data-lucide="${escapeHtml(icon)}"></i>
@@ -1188,23 +1295,31 @@ function emptyState(icon, title, subtitle, actionText = "", actionAttribute = ""
 }
 
 function openPageDialog(status = "ideas") {
-  el.newPageStatus.value = status;
+  if (!el.pageDialog) return;
+
+  if (el.newPageStatus) el.newPageStatus.value = status;
+
   openDialog(el.pageDialog);
-  setTimeout(() => el.newPageTitle.focus(), 50);
+
+  setTimeout(() => el.newPageTitle?.focus(), 50);
 }
 
 function openDialog(dialog) {
+  if (!dialog) return;
+
   if (typeof dialog.showModal === "function") {
     dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
   }
+
   refreshIcons();
 }
 
 function renderMarkdown(markdown) {
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
   const html = [];
+
   let listType = "";
   let inCode = false;
   let codeLines = [];
@@ -1240,6 +1355,7 @@ function renderMarkdown(markdown) {
     }
 
     const heading = line.match(/^(#{1,3})\s+(.+)$/);
+
     if (heading) {
       closeList();
       const level = heading[1].length;
@@ -1254,35 +1370,41 @@ function renderMarkdown(markdown) {
     }
 
     const task = line.match(/^-\s+\[(x| )\]\s+(.+)$/i);
+
     if (task) {
       if (listType !== "ul") {
         closeList();
         html.push("<ul>");
         listType = "ul";
       }
+
       const checked = task[1].toLowerCase() === "x" ? "checked" : "";
       html.push(`<li><input class="task-check" type="checkbox" ${checked} disabled />${inlineMarkdown(task[2])}</li>`);
       return;
     }
 
     const unordered = line.match(/^[-*]\s+(.+)$/);
+
     if (unordered) {
       if (listType !== "ul") {
         closeList();
         html.push("<ul>");
         listType = "ul";
       }
+
       html.push(`<li>${inlineMarkdown(unordered[1])}</li>`);
       return;
     }
 
     const ordered = line.match(/^\d+\.\s+(.+)$/);
+
     if (ordered) {
       if (listType !== "ol") {
         closeList();
         html.push("<ol>");
         listType = "ol";
       }
+
       html.push(`<li>${inlineMarkdown(ordered[1])}</li>`);
       return;
     }
@@ -1294,6 +1416,7 @@ function renderMarkdown(markdown) {
   if (inCode) {
     html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
   }
+
   closeList();
 
   return html.join("\n") || `<p>Preview markdown akan muncul di sini.</p>`;
@@ -1307,17 +1430,8 @@ function inlineMarkdown(value) {
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function summary(markdown) {
-  return markdown
+  return String(markdown || "")
     .replace(/```[\s\S]*?```/g, "")
     .replace(/[#>*_`[\]()]/g, "")
     .split("\n")
@@ -1332,26 +1446,6 @@ function statusTitle(status) {
   return columns.find((column) => column.id === status)?.title || "Ideas";
 }
 
-function formatRelative(dateValue) {
-  const date = new Date(dateValue);
-  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
-  if (Number.isNaN(seconds)) return "";
-  if (seconds < 60) return "baru saja";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} menit lalu`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} jam lalu`;
-  const days = Math.round(hours / 24);
-  return `${days} hari lalu`;
-}
-
-function formatDate(dateValue) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(dateValue));
-}
-
 function formatTime(date) {
   return new Intl.DateTimeFormat("id-ID", {
     hour: "2-digit",
@@ -1363,15 +1457,21 @@ function toLocalInputValue(dateValue) {
   const date = new Date(dateValue);
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60 * 1000);
+
   return local.toISOString().slice(0, 16);
 }
 
 function toast(message) {
-  if (!message) return;
+  if (!message || !el.toast) return;
+
   el.toast.textContent = message;
   el.toast.classList.add("show");
+
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.toast.classList.remove("show"), 2800);
+
+  toastTimer = setTimeout(() => {
+    el.toast.classList.remove("show");
+  }, 2800);
 }
 
 function refreshIcons() {
