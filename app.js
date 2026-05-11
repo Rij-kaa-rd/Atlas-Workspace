@@ -645,31 +645,6 @@ function renderDashboard() {
   });
 }
 
-  el.pageList.querySelectorAll("[data-page-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedPageId = button.dataset.pageId;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      el.sidebar.classList.remove("open");
-      activeView = "notes";
-      renderAll();
-    });
-  });
-
-  const tags = [...new Set(state.pages.flatMap((page) => page.tags))].sort();
-  el.tagCloud.innerHTML = tags.length
-    ? tags
-        .map((tag) => `<button class="chip ${activeTag === tag ? "active" : ""}" data-tag="${tag}">#${escapeHtml(tag)}</button>`)
-        .join("")
-    : `<span class="chip">Belum ada tag</span>`;
-
-  el.tagCloud.querySelectorAll("[data-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeTag = activeTag === button.dataset.tag ? "" : button.dataset.tag;
-      renderAll();
-    });
-  });
-
-
 function renderEditor() {
   const page = getSelectedPage();
   if (!page) return;
