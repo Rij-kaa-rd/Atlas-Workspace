@@ -44,7 +44,7 @@ export function initFirestore() {
   firestoreClient = app ? window.firebase.firestore(app) : null;
 
   // Firebase compat persistence is isolated here so future upgrades only touch this service.
-  firestoreClient?.enablePersistence?.({ synchronizeTabs: true }).catch(() => {});
+  // firestoreClient?.enablePersistence?.({ synchronizeTabs: true }).catch(() => {});
   return firestoreClient;
 }
 

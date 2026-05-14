@@ -1077,10 +1077,14 @@ function initFirebase(forceMessage = false) {
       firebaseApp = window.firebase.initializeApp(config, appName);
     }
 
-    authClient = window.firebase.auth(firebaseApp);
-    firestoreClient = window.firebase.firestore(firebaseApp);
+  authClient = window.firebase.auth(firebaseApp);
+  firestoreClient = window.firebase.firestore(firebaseApp);
 
-    firestoreClient.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+// Disabled temporarily to prevent Firestore startup conflict.
+// Persistence must be enabled before any Firestore operation.
+// Since Atlas Workspace is already local-first via localStorage,
+// cloud sync can run safely without Firestore offline persistence.
+// firestoreClient.enablePersistence({ synchronizeTabs: true }).catch(() => {});
   } catch (error) {
     firebaseApp = null;
     authClient = null;
