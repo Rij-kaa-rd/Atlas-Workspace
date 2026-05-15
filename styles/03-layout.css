@@ -34,6 +34,37 @@
   background: radial-gradient(circle, rgba(116, 119, 91, 0.28), transparent 66%);
 }
 
+.app-shell::before,
+.app-shell::after {
+  content: "";
+  position: fixed;
+  inset: auto;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.22;
+  filter: blur(10px);
+}
+
+.app-shell::before {
+  top: -120px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  background:
+    url("../assets/ui/orb-1.webp")
+    center / cover no-repeat;
+}
+
+.app-shell::after {
+  bottom: -140px;
+  left: -120px;
+  width: 360px;
+  height: 360px;
+  background:
+    url("../assets/ui/orb-2.webp")
+    center / cover no-repeat;
+}
+
 .topbar {
   grid-column: 1 / -1;
   grid-row: 1;
