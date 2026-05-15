@@ -236,3 +236,33 @@
 .nav-item.active .nav-icon {
   opacity: 1;
 }
+
+.nav-icon,
+.topbar-icon,
+.button-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  opacity: 0.82;
+}
+
+.nav-item.active .nav-icon,
+.nav-item:hover .nav-icon {
+  opacity: 1;
+}
+
+.topbar-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.button-icon {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
+}
+
+.button.secondary .button-icon,
+.button.ghost .button-icon {
+  filter: none;
+}

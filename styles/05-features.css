@@ -155,8 +155,9 @@
 
 .dashboard-panel {
   padding: var(--space-5);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface-solid) 90%, transparent), color-mix(in srgb, var(--color-surface-soft) 72%, transparent));
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .panel-header {
@@ -357,4 +358,8 @@
 
 .reminder-card small {
   color: var(--color-muted);
+}
+
+[data-theme="dark"] .dashboard-panel {
+  background: rgba(28, 24, 20, 0.72);
 }
