@@ -46,6 +46,12 @@ function renderMarkdown(markdown = "") {
     .replace(/\n/g, "<br>");
 }
 
+function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -204,14 +210,6 @@ $("dashboardRecentPages").innerHTML = pages.length
       </div>
     `;
 
-  document.querySelectorAll("[data-dashboard-page]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedPageId = button.dataset.dashboardPage;
-      saveState();
-      setView("notes");
-      renderAll();
-    });
-  });
 }
 
 function renderEditor() {
@@ -308,7 +306,7 @@ function renderUser() {
   if ($("userName")) $("userName").textContent = "Guest";
   if ($("userEmail")) $("userEmail").textContent = "Offline-first workspace";
   if ($("userAvatar")) $("userAvatar").textContent = "G";
-  if ($("syncStatus")) $("syncStatus").textContent = "Local workspace";
+  if ($("syncStatusBadge")) $("syncStatusBadge").textContent = "Local workspace";
 }
 
 function renderAll() {
@@ -319,10 +317,7 @@ function renderAll() {
   renderKanban();
   renderReminders();
   renderUser();
-
-  if (window.lucide?.createIcons) {
-    window.lucide.createIcons();
-  }
+  refreshIcons();
 }
 
 function createPage() {

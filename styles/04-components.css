@@ -201,3 +201,38 @@
   background: color-mix(in srgb, var(--color-surface-solid) 84%, transparent);
   box-shadow: var(--shadow-xs);
 }
+
+.nav-icon,
+.icon-button .lucide,
+.button .lucide,
+.search-box .lucide {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  stroke-width: 2.2;
+}
+
+.icon-button .lucide {
+  color: currentColor;
+}
+
+.button .lucide {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+.search-box .lucide {
+  width: 17px;
+  height: 17px;
+  color: var(--color-muted);
+}
+
+.nav-icon {
+  opacity: 0.82;
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  opacity: 1;
+}
