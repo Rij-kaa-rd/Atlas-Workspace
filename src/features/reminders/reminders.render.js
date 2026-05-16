@@ -3,7 +3,7 @@ import { formatDate, sanitizeText } from "../../utils/helpers.js";
 const $ = (id) => document.getElementById(id);
 
 export function renderReminders({ pages }) {
-  const reminders = pages.filter((page) => page.reminderAt);
+  const reminders = pages.filter((page) => page.reminderAt && !page.reminderDone);
 
   if ($("reminderMeta")) {
     $("reminderMeta").textContent = reminders.length

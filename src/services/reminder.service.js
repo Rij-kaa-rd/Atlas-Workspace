@@ -47,7 +47,7 @@ export async function requestReminderPermission() {
   return Notification.requestPermission();
 }
 
-export function showReminderNotification(page) {
+export async function showReminderNotification(page) {
   if (!("Notification" in window)) {
     return false;
   }
@@ -56,10 +56,27 @@ export function showReminderNotification(page) {
     return false;
   }
 
-  new Notification(page.title || "Reminder", {
+  const title = page.title || "Reminder";
+  const options = {
     body: "Reminder dari Atlas Workspace",
-    icon: "/icons/icon-192.png"
-  });
+    icon: "/favicon.svg",
+    tag: `atlas-reminder-${page.id || title}`,
+    renotify: true,
+  };
+
+  if (navigator.serviceWorker?.ready) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration?.showNotification) {
+        await registration.showNotification(title, options);
+        return true;
+      }
+    } catch (error) {
+      console.warn("[reminder.service] Service worker notification failed:", error);
+    }
+  }
+
+  new Notification(title, options);
 
   return true;
 }

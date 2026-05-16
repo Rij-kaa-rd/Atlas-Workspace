@@ -22,6 +22,10 @@ import {
 import { initFirebase } from "./services/firebase.service.js";
 import { registerServiceWorker } from "./services/pwa.service.js";
 import {
+  getDueReminders,
+  showReminderNotification,
+} from "./services/reminder.service.js";
+import {
   getState,
   initStore,
   replaceState,
@@ -42,6 +46,8 @@ let searchQuery = "";
 let currentUser = null;
 let syncStatus = "local";
 let unsubscribeAuth = null;
+let reminderTimer = null;
+let checkingReminders = false;
 
 function refreshIcons() {
   if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -126,6 +132,51 @@ function renderAll() {
   refreshIcons();
 }
 
+async function checkDueReminders() {
+  if (checkingReminders) return;
+
+  checkingReminders = true;
+
+  try {
+    const currentState = getState();
+    const dueReminders = getDueReminders(currentState.pages || []);
+    if (!dueReminders.length) return;
+
+    let didCompleteReminder = false;
+
+    for (const page of dueReminders) {
+      const didNotify = await showReminderNotification(page);
+      if (!didNotify) continue;
+
+      page.reminderDone = true;
+      page.updatedAt = getTodayISO();
+      didCompleteReminder = true;
+    }
+
+    if (didCompleteReminder) {
+      saveState();
+      renderAll();
+    }
+  } finally {
+    checkingReminders = false;
+  }
+}
+
+function startReminderScheduler() {
+  clearInterval(reminderTimer);
+
+  void checkDueReminders();
+  reminderTimer = setInterval(() => {
+    void checkDueReminders();
+  }, 15_000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      void checkDueReminders();
+    }
+  });
+}
+
 function populateStatusOptions() {
   const options = columns.map((column) => `<option value="${column.id}">${column.title}</option>`).join("");
 
@@ -206,6 +257,11 @@ export function initAtlasRuntime() {
       initializeFirebaseRuntime(config);
     },
     setSyncStatus,
+    onReminderPermissionChange(permission) {
+      if (permission === "granted") {
+        void checkDueReminders();
+      }
+    },
     onSearchChange(query) {
       searchQuery = query;
       renderAll();
@@ -213,4 +269,5 @@ export function initAtlasRuntime() {
   });
   renderAll();
   registerServiceWorker();
+  startReminderScheduler();
 }

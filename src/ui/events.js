@@ -21,6 +21,7 @@ export function bindEvents({
   clearFirebaseConfig,
   onFirebaseConfigChange,
   setSyncStatus,
+  onReminderPermissionChange,
 }) {
   let isRegisterMode = false;
 
@@ -158,12 +159,14 @@ export function bindEvents({
     renderAll();
   });
 
-  $("requestReminderPermission")?.addEventListener("click", () => {
-    requestNotificationPermission();
+  $("requestReminderPermission")?.addEventListener("click", async () => {
+    const permission = await requestNotificationPermission();
+    onReminderPermissionChange?.(permission);
   });
 
-  $("notificationButton")?.addEventListener("click", () => {
-    requestNotificationPermission();
+  $("notificationButton")?.addEventListener("click", async () => {
+    const permission = await requestNotificationPermission();
+    onReminderPermissionChange?.(permission);
   });
 
   $("clearTagFilter")?.addEventListener("click", () => {
@@ -272,12 +275,13 @@ export function bindEvents({
 }
 
 async function requestNotificationPermission() {
-  if (!("Notification" in window)) return;
+  if (!("Notification" in window)) return "unsupported";
 
   try {
-    await Notification.requestPermission();
+    return Notification.requestPermission();
   } catch (error) {
     console.warn("[events] Notification permission request failed:", error);
+    return "error";
   }
 }
 
