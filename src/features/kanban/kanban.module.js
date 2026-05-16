@@ -1,27 +1,24 @@
-import {
-  initKanbanDragAndDrop as initRuntimeKanbanDragAndDrop,
-  renderKanban as renderRuntimeKanban,
-  updatePageStatus as updateRuntimePageStatus,
-} from "../../app.runtime.js";
-import { groupBy } from "../../utils/helpers.js";
-
-const columns = [
-  { id: "ideas", title: "Ideas", color: "#315f95" },
-  { id: "doing", title: "Doing", color: "#14715f" },
-  { id: "review", title: "Review", color: "#c65f45" },
-  { id: "done", title: "Done", color: "#677076" },
-];
+import { columns } from "../../config/constants.js";
+import { getState, saveState } from "../../state/store.js";
+import { getTodayISO, groupBy } from "../../utils/helpers.js";
+import { renderKanban as renderKanbanView } from "./kanban.render.js";
 
 export function renderKanban() {
-  renderRuntimeKanban();
+  renderKanbanView({ pages: getState().pages || [], columns });
 }
 
-export function updatePageStatus(pageId, targetStatus, beforeId = "") {
-  return updateRuntimePageStatus(pageId, targetStatus, beforeId);
+export function updatePageStatus(pageId, targetStatus) {
+  const page = getState().pages?.find((item) => item.id === pageId);
+  if (!page) return null;
+
+  page.status = targetStatus;
+  page.updatedAt = getTodayISO();
+  saveState();
+  return page;
 }
 
 export function initKanbanDragAndDrop() {
-  initRuntimeKanbanDragAndDrop();
+  return null;
 }
 
 export function getKanbanColumns(pages = []) {

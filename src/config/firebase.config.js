@@ -1,6 +1,13 @@
-const CLOUD_CONFIG_KEY = "atlas_workspace_cloud_v1";
+import {
+  loadFromStorage,
+  removeFromStorage,
+  saveToStorage,
+  storageKeys,
+} from "../services/storage.service.js";
 
-const DEFAULT_FIREBASE_CONFIG = {
+const LEGACY_CLOUD_CONFIG_KEY = "atlas_workspace_cloud_v1";
+
+export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyDDaZN9mPXPGrBMYykTnwguNsJp27JPLow",
   authDomain: "atlas-workspace-af04b.firebaseapp.com",
   projectId: "atlas-workspace-af04b",
@@ -10,39 +17,41 @@ const DEFAULT_FIREBASE_CONFIG = {
   measurementId: "G-NJK0P498EJ",
 };
 
-function safeJson(value) {
-  try {
-    return value ? JSON.parse(value) : null;
-  } catch {
-    return null;
-  }
+export function isFirebaseConfigValid(config) {
+  return Boolean(
+    config &&
+      config.apiKey &&
+      config.authDomain &&
+      config.projectId &&
+      config.appId,
+  );
 }
 
 export function getFirebaseConfig() {
-  const saved = safeJson(localStorage.getItem(CLOUD_CONFIG_KEY));
-  return saved ? { ...DEFAULT_FIREBASE_CONFIG, ...saved } : { ...DEFAULT_FIREBASE_CONFIG };
+  const saved =
+    loadFromStorage(storageKeys.cloudConfig, null) ||
+    loadFromStorage(LEGACY_CLOUD_CONFIG_KEY, null);
+
+  return saved
+    ? { ...DEFAULT_FIREBASE_CONFIG, ...saved }
+    : { ...DEFAULT_FIREBASE_CONFIG };
 }
 
-export function saveFirebaseConfig(config) {
+export function saveFirebaseConfig(config = {}) {
   const nextConfig = {
-    apiKey: config?.apiKey?.trim?.() || "",
-    authDomain: config?.authDomain?.trim?.() || "",
-    projectId: config?.projectId?.trim?.() || "",
-    appId: config?.appId?.trim?.() || "",
+    ...DEFAULT_FIREBASE_CONFIG,
+    apiKey: config.apiKey?.trim?.() || "",
+    authDomain: config.authDomain?.trim?.() || "",
+    projectId: config.projectId?.trim?.() || "",
+    appId: config.appId?.trim?.() || "",
   };
-  localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(nextConfig));
+
+  saveToStorage(storageKeys.cloudConfig, nextConfig);
   return nextConfig;
 }
 
-export function hasFirebaseConfig() {
-  const config = getFirebaseConfig();
-  return Boolean(config.apiKey && config.authDomain && config.projectId && config.appId);
-}
-
 export function clearFirebaseConfig() {
-  const localConfig = { apiKey: "", authDomain: "", projectId: "", appId: "" };
-  localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(localConfig));
-  return localConfig;
+  removeFromStorage(storageKeys.cloudConfig);
+  removeFromStorage(LEGACY_CLOUD_CONFIG_KEY);
+  return { ...DEFAULT_FIREBASE_CONFIG };
 }
-
-export { CLOUD_CONFIG_KEY, DEFAULT_FIREBASE_CONFIG };

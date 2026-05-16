@@ -1,50 +1,47 @@
-const STORAGE_KEY = "atlas_workspace_state_v2";
-
-const columns = [
-  { id: "ideas", title: "Ideas" },
-  { id: "doing", title: "Doing" },
-  { id: "review", title: "Review" },
-  { id: "done", title: "Done" },
-];
-
-let state = loadState();
-let activeView = "dashboard";
-let searchQuery = "";
+import { columns } from "./config/constants.js";
+import {
+  clearFirebaseConfig,
+  getFirebaseConfig,
+  saveFirebaseConfig,
+} from "./config/firebase.config.js";
+import { renderDashboard } from "./features/dashboard/dashboard.render.js";
+import { renderKanban } from "./features/kanban/kanban.render.js";
+import { renderEditor } from "./features/notes/notes.render.js";
+import { renderReminders } from "./features/reminders/reminders.render.js";
+import {
+  getCurrentUser,
+  onAuthStateChanged,
+  signInWithEmail,
+  signOutUser,
+  signUpWithEmail,
+} from "./services/auth.service.js";
+import {
+  initCloudSync,
+  stopCloudSync,
+} from "./services/cloud-sync.service.js";
+import { initFirebase } from "./services/firebase.service.js";
+import { registerServiceWorker } from "./services/pwa.service.js";
+import {
+  getState,
+  initStore,
+  replaceState,
+  saveState,
+  selectedPage,
+} from "./state/store.js";
+import { bindEvents } from "./ui/events.js";
+import { renderSidebar } from "./ui/sidebar.render.js";
+import { initTheme } from "./ui/theme.js";
+import { renderUser } from "./ui/user.render.js";
+import { generateId, getTodayISO, parseTags } from "./utils/helpers.js";
 
 const $ = (id) => document.getElementById(id);
 
-function generateId(prefix = "id") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
-}
-
-function getTodayISO() {
-  return new Date().toISOString();
-}
-
-function sanitizeText(value = "") {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function parseTags(value = "") {
-  return String(value)
-    .split(",")
-    .map((tag) => tag.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function renderMarkdown(markdown = "") {
-  return sanitizeText(markdown)
-    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-    .replace(/^## (.*$)/gim, "<h2>$1</h2>")
-    .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-    .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
-    .replace(/\n/g, "<br>");
-}
+let state = null;
+let activeView = "dashboard";
+let searchQuery = "";
+let currentUser = null;
+let syncStatus = "local";
+let unsubscribeAuth = null;
 
 function refreshIcons() {
   if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -52,49 +49,11 @@ function refreshIcons() {
   }
 }
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.pages)) return saved;
-  } catch {
-    // ignore corrupted localStorage
-  }
-
-  const firstPage = {
-    id: generateId("page"),
-    title: "Welcome to Atlas Workspace",
-    icon: "A",
-    status: "doing",
-    tags: ["welcome", "workspace"],
-    markdown: "# Welcome to Atlas Workspace\n\nTulis catatan, susun task, dan kelola reminder dari satu tempat.",
-    reminderAt: "",
-    reminderDone: false,
-    createdAt: getTodayISO(),
-    updatedAt: getTodayISO(),
-  };
-
-  return {
-    workspaceName: "Personal OS",
-    selectedPageId: firstPage.id,
-    pages: [firstPage],
-    updatedAt: getTodayISO(),
-  };
-}
-
-function saveState() {
-  state.updatedAt = getTodayISO();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function selectedPage() {
-  return state.pages.find((page) => page.id === state.selectedPageId) || state.pages[0] || null;
-}
-
 function filteredPages() {
   const q = searchQuery.toLowerCase();
 
-  return state.pages.filter((page) => {
-    const text = `${page.title} ${page.markdown} ${page.tags.join(" ")}`.toLowerCase();
+  return (state.pages || []).filter((page) => {
+    const text = `${page.title} ${page.markdown} ${(page.tags || []).join(" ")}`.toLowerCase();
     return !q || text.includes(q);
   });
 }
@@ -116,213 +75,14 @@ function setView(view) {
   });
 }
 
-function renderSidebar() {
-  const pages = filteredPages();
+function selectPage(pageId) {
+  const pageExists = state.pages.some((page) => page.id === pageId);
+  if (!pageExists) return;
 
-  if ($("workspaceName")) $("workspaceName").textContent = state.workspaceName || "Personal OS";
-  if ($("pageCount")) $("pageCount").textContent = pages.length;
-
-  if ($("pageList")) {
-    $("pageList").innerHTML = pages
-      .map(
-        (page) => `
-          <button class="page-item ${page.id === state.selectedPageId ? "active" : ""}" data-page-id="${page.id}">
-            <span>${sanitizeText(page.icon || "P")}</span>
-            <strong>${sanitizeText(page.title)}</strong>
-          </button>
-        `,
-      )
-      .join("");
-
-    $("pageList").querySelectorAll("[data-page-id]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.selectedPageId = button.dataset.pageId;
-        saveState();
-        setView("notes");
-        renderAll();
-      });
-    });
-  }
-
-  if ($("tagCloud")) {
-    const tags = [...new Set(state.pages.flatMap((page) => page.tags || []))];
-
-    $("tagCloud").innerHTML = tags.length
-      ? tags.map((tag) => `<span class="chip">#${sanitizeText(tag)}</span>`).join("")
-      : `<span class="muted">Belum ada tag</span>`;
-  }
-}
-
-function renderDashboard() {
-  const pages = state.pages || [];
-  const visiblePages = filteredPages();
-
-  const doing = pages.filter((page) => page.status === "doing");
-  const review = pages.filter((page) => page.status === "review");
-  const reminders = pages.filter((page) => page.reminderAt && !page.reminderDone);
-
-  if ($("dashboardTotalPages")) $("dashboardTotalPages").textContent = pages.length;
-  if ($("dashboardDoingPages")) $("dashboardDoingPages").textContent = doing.length;
-  if ($("dashboardReviewPages")) $("dashboardReviewPages").textContent = review.length;
-  if ($("dashboardReminderPages")) $("dashboardReminderPages").textContent = reminders.length;
-  if ($("heroPageCount")) $("heroPageCount").textContent = pages.length;
-  if ($("heroReminderCount")) $("heroReminderCount").textContent = reminders.length;
-
-  if ($("dashboardRecentPages")) {
-    $("dashboardRecentPages").innerHTML = visiblePages.length
-      ? sortByUpdatedAt(visiblePages)
-          .slice(0, 5)
-          .map(
-            (page) => `
-              <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-                <span class="page-dot">${sanitizeText(page.icon || "P")}</span>
-                <span>
-                  <strong>${sanitizeText(page.title)}</strong>
-                  <small>${sanitizeText(page.status || "ideas")}</small>
-                </span>
-              </button>
-            `,
-          )
-          .join("")
-      : `
-          <div class="empty-state">
-            <strong>Belum ada halaman.</strong>
-            <span>Buat halaman pertama untuk mulai menyusun workspace.</span>
-          </div>
-        `;
-  }
-
-  if ($("dashboardDuePages")) {
-    $("dashboardDuePages").innerHTML = reminders.length
-      ? reminders
-          .slice(0, 5)
-          .map(
-            (page) => `
-              <button class="dashboard-list-item" data-dashboard-page="${page.id}">
-                <span class="page-dot">${sanitizeText(page.icon || "P")}</span>
-                <span>
-                  <strong>${sanitizeText(page.title)}</strong>
-                  <small>${formatDate(page.reminderAt)}</small>
-                </span>
-              </button>
-            `,
-          )
-          .join("")
-      : `
-          <div class="empty-state">
-            <strong>Tidak ada reminder aktif.</strong>
-            <span>Tambahkan reminder dari halaman Notes.</span>
-          </div>
-        `;
-  }
-}
-
-function renderEditor() {
-  const page = selectedPage();
-  if (!page) return;
-
-  if ($("titleInput")) $("titleInput").value = page.title || "";
-  if ($("iconInput")) $("iconInput").value = page.icon || "";
-  if ($("tagsInput")) $("tagsInput").value = stringifyTags(page.tags || []);
-  if ($("statusSelect")) $("statusSelect").value = page.status || "ideas";
-  if ($("markdownInput")) $("markdownInput").value = page.markdown || "";
-  if ($("markdownPreview")) $("markdownPreview").innerHTML = renderMarkdown(page.markdown || "");
-  if ($("previewTags")) {
-    $("previewTags").innerHTML = (page.tags || [])
-      .map((tag) => `<span class="chip">#${sanitizeText(tag)}</span>`)
-      .join("");
-  }
-}
-
-function renderKanban() {
-  const pages = filteredPages();
-
-  if ($("kanbanMeta")) $("kanbanMeta").textContent = `${pages.length} kartu`;
-
-  if (!$("kanbanBoard")) return;
-
-  $("kanbanBoard").innerHTML = columns
-    .map((column) => {
-      const items = pages.filter((page) => page.status === column.id);
-
-      return `
-        <section class="kanban-column">
-          <div class="kanban-column-header">
-            <strong>${column.title}</strong>
-            <span>${items.length}</span>
-          </div>
-          <div class="kanban-column-body">
-            ${
-              items.length
-                ? items
-                    .map(
-                      (page) => `
-                        <article class="kanban-card" data-open-page="${page.id}">
-                          <strong>${sanitizeText(page.icon || "P")} ${sanitizeText(page.title)}</strong>
-                          <p>${sanitizeText((page.markdown || "").replaceAll("#", "").slice(0, 90))}</p>
-                        </article>
-                      `,
-                    )
-                    .join("")
-                : `<p class="empty-state">Belum ada kartu.</p>`
-            }
-          </div>
-        </section>
-      `;
-    })
-    .join("");
-
-  $("kanbanBoard").querySelectorAll("[data-open-page]").forEach((card) => {
-    card.addEventListener("click", () => {
-      state.selectedPageId = card.dataset.openPage;
-      saveState();
-      setView("notes");
-      renderAll();
-    });
-  });
-}
-
-function renderReminders() {
-  const reminders = filteredPages().filter((page) => page.reminderAt);
-
-  if ($("reminderMeta")) {
-    $("reminderMeta").textContent = reminders.length
-      ? `${reminders.length} reminder`
-      : "Tidak ada reminder";
-  }
-
-  if (!$("reminderList")) return;
-
-  $("reminderList").innerHTML = reminders.length
-    ? reminders
-        .map(
-          (page) => `
-            <article class="reminder-item">
-              <strong>${sanitizeText(page.title)}</strong>
-              <span>${formatDate(page.reminderAt)}</span>
-            </article>
-          `,
-        )
-        .join("")
-    : `<p class="empty-state">Belum ada reminder.</p>`;
-}
-
-function renderUser() {
-  if ($("userName")) $("userName").textContent = "Guest";
-  if ($("userEmail")) $("userEmail").textContent = "Offline-first workspace";
-  if ($("userAvatar")) $("userAvatar").textContent = "G";
-  if ($("syncStatusBadge")) $("syncStatusBadge").textContent = "Local workspace";
-}
-
-function renderAll() {
-  setView(activeView);
-  renderSidebar();
-  renderDashboard();
-  renderEditor();
-  renderKanban();
-  renderReminders();
-  renderUser();
-  refreshIcons();
+  state.selectedPageId = pageId;
+  saveState();
+  setView("notes");
+  renderAll();
 }
 
 function createPage() {
@@ -352,109 +112,18 @@ function createPage() {
   renderAll();
 }
 
-function bindEvents() {
-  $("sidebarToggle")?.addEventListener("click", () => {
-    $("sidebar")?.classList.toggle("open");
-  });
+function renderAll() {
+  state = getState();
+  const pages = filteredPages();
 
-  document.querySelectorAll("[data-view]").forEach((button) => {
-    button.addEventListener("click", () => {
-      setView(button.dataset.view);
-      renderAll();
-    });
-  });
-
-  document.addEventListener("click", (event) => {
-    const dashboardPageButton = event.target.closest("[data-dashboard-page]");
-
-    if (!dashboardPageButton) return;
-
-    const pageId = dashboardPageButton.dataset.dashboardPage;
-    const pageExists = state.pages.some((page) => page.id === pageId);
-
-    if (!pageExists) return;
-
-    state.selectedPageId = pageId;
-    saveState();
-    setView("notes");
-    renderAll();
-  });
-
-  $("searchInput")?.addEventListener("input", (event) => {
-    searchQuery = event.target.value.trim();
-    renderAll();
-  });
-
-$("heroNewPageButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
-$("newPageButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
-$("newCardButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
-
-  $("pageForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    createPage();
-  });
-
-  $("titleInput")?.addEventListener("input", (event) => {
-    const page = selectedPage();
-    if (!page) return;
-    page.title = event.target.value || "Untitled";
-    page.updatedAt = getTodayISO();
-    saveState();
-    renderSidebar();
-    renderDashboard();
-    renderKanban();
-  });
-
-  $("iconInput")?.addEventListener("input", (event) => {
-    const page = selectedPage();
-    if (!page) return;
-    page.icon = event.target.value || "P";
-    page.updatedAt = getTodayISO();
-    saveState();
-    renderAll();
-  });
-
-  $("tagsInput")?.addEventListener("change", (event) => {
-    const page = selectedPage();
-    if (!page) return;
-    page.tags = parseTags(event.target.value);
-    page.updatedAt = getTodayISO();
-    saveState();
-    renderAll();
-  });
-
-  $("statusSelect")?.addEventListener("change", (event) => {
-    const page = selectedPage();
-    if (!page) return;
-    page.status = event.target.value;
-    page.updatedAt = getTodayISO();
-    saveState();
-    renderAll();
-  });
-
-  $("markdownInput")?.addEventListener("input", (event) => {
-    const page = selectedPage();
-    if (!page) return;
-    page.markdown = event.target.value;
-    page.updatedAt = getTodayISO();
-    saveState();
-    renderEditor();
-    renderDashboard();
-    renderKanban();
-  });
-
-  document.querySelectorAll("[data-close-dialog]").forEach((button) => {
-    button.addEventListener("click", () => {
-      button.closest("dialog")?.close();
-    });
-  });
-
-  $("themeToggle")?.addEventListener("click", () => {
-    const current = document.documentElement.dataset.theme || "light";
-    const next = current === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem("atlas-theme", next);
-  });
+  setView(activeView);
+  renderSidebar({ state, pages, onSelectPage: selectPage });
+  renderDashboard({ state, filteredPages: pages, setView, renderAll });
+  renderEditor({ page: selectedPage() });
+  renderKanban({ pages, columns, onOpenPage: selectPage });
+  renderReminders({ pages });
+  renderUser({ user: currentUser, syncStatus });
+  refreshIcons();
 }
 
 function populateStatusOptions() {
@@ -464,28 +133,84 @@ function populateStatusOptions() {
   if ($("newPageStatus")) $("newPageStatus").innerHTML = options;
 }
 
-function initTheme() {
-  const theme = localStorage.getItem("atlas-theme") || "light";
-  document.documentElement.dataset.theme = theme;
+function setUserSession(user) {
+  currentUser = user;
+  renderAll();
+}
+
+function setSyncStatus(status) {
+  syncStatus = status;
+  renderAll();
+}
+
+function initializeFirebaseRuntime(config = getFirebaseConfig()) {
+  const result = initFirebase(config);
+
+  if (!result.ok) {
+    stopCloudSync();
+    setUserSession(null);
+    setSyncStatus("local");
+    return result;
+  }
+
+  setSyncStatus("login-required");
+  observeAuthState();
+  return result;
+}
+
+function observeAuthState() {
+  unsubscribeAuth?.();
+
+  unsubscribeAuth = onAuthStateChanged((user) => {
+    setUserSession(user);
+
+    if (user) {
+      initCloudSync({
+        getState,
+        replaceState,
+        saveLocalState: saveState,
+        renderAll,
+        setUserSession,
+        setSyncStatus,
+      });
+      return;
+    }
+
+    stopCloudSync();
+    setSyncStatus("login-required");
+  });
 }
 
 export function initAtlasRuntime() {
+  state = initStore();
+
   initTheme();
+  initializeFirebaseRuntime();
   populateStatusOptions();
-  bindEvents();
+  bindEvents({
+    state,
+    getState,
+    setView,
+    renderAll,
+    createPage,
+    selectedPage,
+    saveState,
+    getCurrentUser,
+    signInWithEmail,
+    signUpWithEmail,
+    signOutUser,
+    getFirebaseConfig,
+    saveFirebaseConfig,
+    clearFirebaseConfig,
+    onFirebaseConfigChange(config) {
+      initializeFirebaseRuntime(config);
+    },
+    setSyncStatus,
+    onSearchChange(query) {
+      searchQuery = query;
+      renderAll();
+    },
+  });
   renderAll();
-
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
-  }
+  registerServiceWorker();
 }
-
-import {
-  generateId,
-  getTodayISO,
-  sanitizeText,
-  parseTags,
-  stringifyTags,
-  sortByUpdatedAt,
-  formatDate,
-} from "./utils/helpers.js";

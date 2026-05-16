@@ -1,0 +1,289 @@
+import { generateId, getTodayISO, parseTags } from "../utils/helpers.js";
+import { toggleTheme } from "./theme.js";
+
+const $ = (id) => document.getElementById(id);
+
+export function bindEvents({
+  state,
+  getState,
+  setView,
+  renderAll,
+  createPage,
+  selectedPage,
+  saveState,
+  onSearchChange,
+  getCurrentUser,
+  signInWithEmail,
+  signUpWithEmail,
+  signOutUser,
+  getFirebaseConfig,
+  saveFirebaseConfig,
+  clearFirebaseConfig,
+  onFirebaseConfigChange,
+  setSyncStatus,
+}) {
+  let isRegisterMode = false;
+
+  $("sidebarToggle")?.addEventListener("click", () => {
+    $("sidebar")?.classList.toggle("open");
+  });
+
+  document.querySelectorAll("[data-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setView(button.dataset.view);
+      renderAll();
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    const dashboardPageButton = event.target.closest("[data-dashboard-page]");
+
+    if (!dashboardPageButton) return;
+
+    const pageId = dashboardPageButton.dataset.dashboardPage;
+    const currentState = getState?.() || state;
+    const pageExists = currentState.pages.some((page) => page.id === pageId);
+
+    if (!pageExists) return;
+
+    currentState.selectedPageId = pageId;
+    saveState();
+    setView("notes");
+    renderAll();
+  });
+
+  $("searchInput")?.addEventListener("input", (event) => {
+    onSearchChange?.(event.target.value.trim());
+  });
+
+  $("heroNewPageButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
+  $("newPageButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
+  $("newCardButton")?.addEventListener("click", () => $("pageDialog")?.showModal());
+
+  $("pageForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createPage();
+  });
+
+  $("titleInput")?.addEventListener("input", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+    page.title = event.target.value || "Untitled";
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("iconInput")?.addEventListener("input", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+    page.icon = event.target.value || "P";
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("tagsInput")?.addEventListener("change", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+    page.tags = parseTags(event.target.value);
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("statusSelect")?.addEventListener("change", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+    page.status = event.target.value;
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("markdownInput")?.addEventListener("input", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+    page.markdown = event.target.value;
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("reminderInput")?.addEventListener("change", (event) => {
+    const page = selectedPage();
+    if (!page) return;
+
+    page.reminderAt = event.target.value || "";
+    page.reminderDone = false;
+    page.updatedAt = getTodayISO();
+    saveState();
+    renderAll();
+  });
+
+  $("deletePageButton")?.addEventListener("click", () => {
+    const currentState = getState?.() || state;
+    const page = selectedPage();
+    if (!page || !currentState.pages?.length) return;
+
+    const shouldDelete = window.confirm(`Hapus halaman "${page.title || "Untitled"}"?`);
+    if (!shouldDelete) return;
+
+    currentState.pages = currentState.pages.filter((item) => item.id !== page.id);
+    currentState.selectedPageId = currentState.pages[0]?.id || "";
+    saveState();
+    setView(currentState.pages.length ? "notes" : "dashboard");
+    renderAll();
+  });
+
+  $("duplicatePageButton")?.addEventListener("click", () => {
+    const currentState = getState?.() || state;
+    const page = selectedPage();
+    if (!page) return;
+
+    const now = getTodayISO();
+    const duplicate = {
+      ...page,
+      id: generateId("page"),
+      title: `${page.title || "Untitled"} Copy`,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const pageIndex = currentState.pages.findIndex((item) => item.id === page.id);
+    currentState.pages.splice(pageIndex + 1, 0, duplicate);
+    currentState.selectedPageId = duplicate.id;
+    saveState();
+    setView("notes");
+    renderAll();
+  });
+
+  $("requestReminderPermission")?.addEventListener("click", () => {
+    requestNotificationPermission();
+  });
+
+  $("notificationButton")?.addEventListener("click", () => {
+    requestNotificationPermission();
+  });
+
+  $("clearTagFilter")?.addEventListener("click", () => {
+    if ($("searchInput")) $("searchInput").value = "";
+    onSearchChange?.("");
+  });
+
+  document.querySelectorAll("[data-close-dialog]").forEach((button) => {
+    button.addEventListener("click", () => {
+      button.closest("dialog")?.close();
+    });
+  });
+
+  $("themeToggle")?.addEventListener("click", () => {
+    toggleTheme();
+  });
+
+  $("authButton")?.addEventListener("click", async () => {
+    if (getCurrentUser?.()) {
+      await signOutUser?.();
+      return;
+    }
+
+    setAuthMode(false);
+    $("authDialog")?.showModal();
+  });
+
+  $("toggleAuthMode")?.addEventListener("click", () => {
+    setAuthMode(!isRegisterMode);
+  });
+
+  $("authForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = $("authEmail")?.value?.trim() || "";
+    const password = $("authPassword")?.value || "";
+    const name = $("authName")?.value?.trim() || "";
+    const submitButton = $("submitAuthButton");
+
+    try {
+      if (submitButton) submitButton.disabled = true;
+
+      if (isRegisterMode) {
+        await signUpWithEmail?.(name, email, password);
+      } else {
+        await signInWithEmail?.(email, password);
+      }
+
+      $("authForm")?.reset();
+      $("authDialog")?.close();
+    } catch (error) {
+      console.warn("[events] Auth request failed:", error);
+      setSyncStatus?.("error");
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  $("settingsButton")?.addEventListener("click", () => {
+    populateSettingsForm(getFirebaseConfig?.());
+    $("settingsDialog")?.showModal();
+  });
+
+  $("settingsForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const config = saveFirebaseConfig?.({
+      apiKey: $("firebaseApiKey")?.value || "",
+      authDomain: $("firebaseAuthDomain")?.value || "",
+      projectId: $("firebaseProjectId")?.value || "",
+      appId: $("firebaseAppId")?.value || "",
+    });
+
+    onFirebaseConfigChange?.(config);
+    $("settingsDialog")?.close();
+  });
+
+  $("clearCloudConfig")?.addEventListener("click", () => {
+    const config = clearFirebaseConfig?.();
+    populateSettingsForm(config);
+    onFirebaseConfigChange?.(config);
+  });
+
+  function setAuthMode(nextIsRegisterMode) {
+    isRegisterMode = nextIsRegisterMode;
+
+    if ($("authTitle")) $("authTitle").textContent = isRegisterMode ? "Buat Akun" : "Login";
+    if ($("authSubtitle")) {
+      $("authSubtitle").textContent = isRegisterMode
+        ? "Buat akun untuk cloud sync."
+        : "Masuk untuk cloud sync.";
+    }
+
+    const submitLabel = $("submitAuthButton")?.querySelector("span");
+    if (submitLabel) submitLabel.textContent = isRegisterMode ? "Buat Akun" : "Login";
+    if ($("toggleAuthMode")) {
+      $("toggleAuthMode").textContent = isRegisterMode
+        ? "Sudah punya akun? Login"
+        : "Buat akun";
+    }
+
+    const nameLabel = $("authName")?.closest("label");
+    if (nameLabel) nameLabel.hidden = !isRegisterMode;
+    if ($("authName")) $("authName").required = isRegisterMode;
+  }
+}
+
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) return;
+
+  try {
+    await Notification.requestPermission();
+  } catch (error) {
+    console.warn("[events] Notification permission request failed:", error);
+  }
+}
+
+function populateSettingsForm(config = {}) {
+  if ($("firebaseApiKey")) $("firebaseApiKey").value = config.apiKey || "";
+  if ($("firebaseAuthDomain")) $("firebaseAuthDomain").value = config.authDomain || "";
+  if ($("firebaseProjectId")) $("firebaseProjectId").value = config.projectId || "";
+  if ($("firebaseAppId")) $("firebaseAppId").value = config.appId || "";
+}

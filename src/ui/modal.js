@@ -1,17 +1,20 @@
-import { openRuntimeDialog } from "../app.runtime.js";
-
 export function initModals() {
   document.querySelectorAll("[data-close-dialog]").forEach((button) => {
     button.addEventListener("click", () => {
       button.closest("dialog")?.close();
-    }, { once: true });
+    });
   });
 }
 
 export function openModal(id) {
   const dialog = document.getElementById(id);
   if (!dialog) return;
-  openRuntimeDialog(dialog);
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
 }
 
 export function closeModal(id) {

@@ -1,47 +1,57 @@
-import {
-  getRuntimeCurrentUser,
-  logoutRuntimeUser,
-  renderAuthState,
-} from "../app.runtime.js";
+import { getFirebaseAuth } from "./firebase.service.js";
 
-const authListeners = new Set();
+let currentUser = null;
 
-export async function initAuth() {
-  return getCurrentUser();
-}
+export function onAuthStateChanged(callback) {
+  const auth = getFirebaseAuth();
 
-export async function loginWithGoogle() {
-  if (!window.firebase?.auth) {
-    throw new Error("Firebase Auth is not ready.");
+  if (!auth?.onAuthStateChanged) {
+    currentUser = null;
+    callback?.(null);
+    return () => {};
   }
 
-  const provider = new window.firebase.auth.GoogleAuthProvider();
-  const app = window.firebase.apps[0];
-  if (!app) throw new Error("Firebase app is not initialized.");
-
-  return window.firebase.auth(app).signInWithPopup(provider);
+  return auth.onAuthStateChanged((user) => {
+    currentUser = user || null;
+    callback?.(currentUser);
+  });
 }
 
-export function logoutUser() {
-  return logoutRuntimeUser();
+export async function signInWithEmail(email, password) {
+  const auth = getFirebaseAuth();
+  if (!auth?.signInWithEmailAndPassword) {
+    throw new Error("Firebase Auth is not available.");
+  }
+
+  const credential = await auth.signInWithEmailAndPassword(email, password);
+  currentUser = credential.user || null;
+  return credential;
+}
+
+export async function signUpWithEmail(name, email, password) {
+  const auth = getFirebaseAuth();
+  if (!auth?.createUserWithEmailAndPassword) {
+    throw new Error("Firebase Auth is not available.");
+  }
+
+  const credential = await auth.createUserWithEmailAndPassword(email, password);
+
+  if (name && credential.user?.updateProfile) {
+    await credential.user.updateProfile({ displayName: name });
+  }
+
+  currentUser = credential.user || null;
+  return credential;
+}
+
+export async function signOutUser() {
+  const auth = getFirebaseAuth();
+  if (!auth?.signOut) return;
+
+  await auth.signOut();
+  currentUser = null;
 }
 
 export function getCurrentUser() {
-  return getRuntimeCurrentUser();
-}
-
-export function onAuthChange(callback) {
-  if (typeof callback !== "function") {
-    throw new Error("Auth listener must be a function.");
-  }
-
-  authListeners.add(callback);
-  callback(getCurrentUser());
-
-  return () => authListeners.delete(callback);
-}
-
-export function notifyAuthChange(user = getCurrentUser()) {
-  renderAuthState();
-  authListeners.forEach((callback) => callback(user));
+  return currentUser || getFirebaseAuth()?.currentUser || null;
 }

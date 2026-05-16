@@ -40,6 +40,15 @@ export function sanitizeText(value) {
     .replace(/'/g, "&#039;");
 }
 
+export function renderMarkdown(markdown = "") {
+  return sanitizeText(markdown)
+    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
+    .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+    .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+    .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
+}
+
 export function getTodayISO() {
   return new Date().toISOString();
 }

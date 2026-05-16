@@ -1,13 +1,13 @@
-import { renderAuthState as renderRuntimeAuthState } from "../../app.runtime.js";
-import { logoutUser } from "../../services/auth.service.js";
+import { getCurrentUser, signOutUser } from "../../services/auth.service.js";
+import { renderUser } from "../../ui/user.render.js";
 
 export function renderAuthState() {
-  renderRuntimeAuthState();
+  renderUser({ user: getCurrentUser() });
 }
 
 export function bindAuthEvents() {
   const authButton = document.getElementById("authButton");
   authButton?.addEventListener("atlas:logout", () => {
-    logoutUser();
+    void signOutUser();
   });
 }

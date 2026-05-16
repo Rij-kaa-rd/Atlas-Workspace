@@ -1,65 +1,76 @@
-import { hasFirebaseConfig, getFirebaseConfig } from "../config/firebase.config.js";
-import {
-  getRuntimeSyncStatus,
-  loadRuntimeWorkspaceFromCloud,
-  syncRuntimeWorkspaceToCloud,
-  updateRuntimeSyncStatus,
-} from "../app.runtime.js";
+import { isFirebaseConfigValid } from "../config/firebase.config.js";
 
 let firebaseApp = null;
+let authClient = null;
 let firestoreClient = null;
+let persistenceRequested = false;
+let lastError = null;
 
-export async function initFirebaseApp() {
-  if (!hasFirebaseConfig()) {
-    updateSyncStatus("Local mode");
-    return null;
+export function initFirebase(config) {
+  if (!isFirebaseConfigValid(config)) {
+    lastError = new Error("Firebase config is incomplete.");
+    firebaseApp = null;
+    authClient = null;
+    firestoreClient = null;
+    return { ok: false, error: lastError };
   }
 
-  const config = getFirebaseConfig();
   if (!window.firebase?.initializeApp) {
-    updateSyncStatus("Error");
-    return null;
+    lastError = new Error("Firebase compat SDK is not available.");
+    firebaseApp = null;
+    authClient = null;
+    firestoreClient = null;
+    return { ok: false, error: lastError };
   }
 
   try {
-    const appName = `atlas-${config.projectId}`;
-    firebaseApp = window.firebase.apps.find((app) => app.name === appName)
-      || window.firebase.initializeApp(config, appName);
-    initFirestore();
-    return firebaseApp;
+    firebaseApp = getExistingApp(config) || window.firebase.initializeApp(config);
+    authClient = window.firebase.auth ? window.firebase.auth(firebaseApp) : null;
+    firestoreClient = window.firebase.firestore ? window.firebase.firestore(firebaseApp) : null;
+
+    enablePersistenceWhenSafe();
+    lastError = null;
+
+    return {
+      ok: true,
+      app: firebaseApp,
+      auth: authClient,
+      firestore: firestoreClient,
+    };
   } catch (error) {
-    updateSyncStatus("Error");
-    console.warn("[firebase.service] Firebase initialization failed:", error);
+    lastError = error;
     firebaseApp = null;
+    authClient = null;
     firestoreClient = null;
-    return null;
+    console.warn("[firebase.service] Firebase initialization failed:", error);
+    return { ok: false, error };
   }
 }
 
-export function initFirestore() {
-  const config = getFirebaseConfig();
-  if (!window.firebase?.firestore || !config.projectId) return null;
+export function getFirebaseApp() {
+  return firebaseApp;
+}
 
-  const app = window.firebase.apps.find((item) => item.name === `atlas-${config.projectId}`);
-  firestoreClient = app ? window.firebase.firestore(app) : null;
+export function getFirebaseAuth() {
+  return authClient;
+}
 
-  // Firebase compat persistence is isolated here so future upgrades only touch this service.
-  // firestoreClient?.enablePersistence?.({ synchronizeTabs: true }).catch(() => {});
+export function getFirestore() {
   return firestoreClient;
 }
 
-export function syncWorkspaceToCloud() {
-  return syncRuntimeWorkspaceToCloud();
+export function isFirebaseReady() {
+  return Boolean(firebaseApp && authClient && firestoreClient && !lastError);
 }
 
-export function loadWorkspaceFromCloud() {
-  return loadRuntimeWorkspaceFromCloud();
+function getExistingApp(config) {
+  const apps = window.firebase?.apps || [];
+  return apps.find((app) => app?.options?.projectId === config.projectId) || apps[0] || null;
 }
 
-export function updateSyncStatus(status) {
-  updateRuntimeSyncStatus(status);
-}
+function enablePersistenceWhenSafe() {
+  if (!firestoreClient || persistenceRequested) return;
 
-export function getSyncStatus() {
-  return getRuntimeSyncStatus();
+  persistenceRequested = true;
+  firestoreClient.enablePersistence?.({ synchronizeTabs: true }).catch(() => {});
 }

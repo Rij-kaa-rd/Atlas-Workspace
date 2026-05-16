@@ -1,11 +1,13 @@
-import { getRuntimeState, renderDashboard as renderRuntimeDashboard } from "../../app.runtime.js";
+import { getState } from "../../state/store.js";
 import { sortByUpdatedAt } from "../../utils/helpers.js";
+import { renderDashboard as renderDashboardView } from "./dashboard.render.js";
 
 export function renderDashboard() {
-  renderRuntimeDashboard();
+  const state = getState();
+  renderDashboardView({ state, filteredPages: state.pages || [] });
 }
 
-export function getDashboardStats(pages = getRuntimeState()?.pages || []) {
+export function getDashboardStats(pages = getState()?.pages || []) {
   return {
     totalPages: pages.length,
     doing: pages.filter((page) => page.status === "doing").length,
@@ -14,11 +16,11 @@ export function getDashboardStats(pages = getRuntimeState()?.pages || []) {
   };
 }
 
-export function getRecentPages(pages = getRuntimeState()?.pages || [], limit = 5) {
+export function getRecentPages(pages = getState()?.pages || [], limit = 5) {
   return sortByUpdatedAt(pages).slice(0, limit);
 }
 
-export function getDueSoonReminders(pages = getRuntimeState()?.pages || [], limit = 5) {
+export function getDueSoonReminders(pages = getState()?.pages || [], limit = 5) {
   return pages
     .filter((page) => page.reminderAt && !page.reminderDone)
     .sort((a, b) => new Date(a.reminderAt) - new Date(b.reminderAt))

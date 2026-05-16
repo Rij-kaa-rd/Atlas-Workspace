@@ -948,6 +948,13 @@ body {
   color: var(--muted-strong);
 }
 
+.sync-badge.login-required,
+.sync-badge.cloud-ready {
+  background: #eef4ff;
+  border-color: #bfd0f4;
+  color: #2f5caa;
+}
+
 .sync-badge.syncing {
   background: #fff7df;
   border-color: #ead491;
@@ -976,6 +983,13 @@ body {
   background: #173825;
   border-color: #23543a;
   color: #8be9b0;
+}
+
+[data-theme="dark"] .sync-badge.login-required,
+[data-theme="dark"] .sync-badge.cloud-ready {
+  background: #172948;
+  border-color: #294878;
+  color: #9fc1ff;
 }
 
 [data-theme="dark"] .sync-badge.error {

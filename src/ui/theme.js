@@ -1,7 +1,7 @@
-const THEME_KEY = "atlas-theme";
+import { storageKeys } from "../services/storage.service.js";
 
 export function initTheme() {
-  const savedTheme = localStorage.getItem(THEME_KEY) || "light";
+  const savedTheme = localStorage.getItem(storageKeys.theme) || "light";
   document.documentElement.dataset.theme = savedTheme;
   return savedTheme;
 }
@@ -9,7 +9,7 @@ export function initTheme() {
 export function setTheme(theme) {
   const nextTheme = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = nextTheme;
-  localStorage.setItem(THEME_KEY, nextTheme);
+  localStorage.setItem(storageKeys.theme, nextTheme);
   return nextTheme;
 }
 
